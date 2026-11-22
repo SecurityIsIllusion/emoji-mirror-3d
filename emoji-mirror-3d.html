@@ -1,0 +1,1747 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Emoji Mirror 3D</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<style>
+  @property --c1 { syntax: "<color>"; inherits: true; initial-value: #ffd45e; }
+  @property --c2 { syntax: "<color>"; inherits: true; initial-value: #c27a00; }
+
+  :root { --glass: rgba(20, 17, 30, .62); --ink: #fff; }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    font-family: "Bricolage Grotesque", system-ui, -apple-system, "Segoe UI", sans-serif;
+    color: var(--ink);
+    background: radial-gradient(ellipse at 50% 40%, var(--c1), var(--c2) 80%);
+    transition: --c1 1s ease, --c2 1s ease;
+  }
+  #gl { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+
+  .pill {
+    background: var(--glass); color: var(--ink);
+    -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+    border-radius: 999px; border: 0; font: inherit;
+  }
+  header { position: fixed; top: 16px; left: 16px; right: 16px; display: flex; justify-content: space-between; align-items: center; gap: 12px; z-index: 5; pointer-events: none; }
+  header > * { pointer-events: auto; }
+  .brand { padding: 9px 18px; font-weight: 800; letter-spacing: -0.01em; }
+  #dexBtn { padding: 9px 18px; font-weight: 600; cursor: pointer; }
+  #dexBtn:hover { background: rgba(20, 17, 30, .8); }
+  button:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+
+  #cam {
+    position: fixed; left: 16px; top: 68px; width: min(30vw, 190px); aspect-ratio: 4 / 3;
+    border-radius: 22px; overflow: hidden; background: #000; z-index: 4;
+    box-shadow: 0 0 0 4px rgba(255,255,255,.85), 0 8px 24px rgba(0,0,0,.25);
+  }
+  #cam[hidden] { display: none; }
+  #cam video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); display: block; }
+  #handCv { position: absolute; inset: 0; width: 100%; height: 100%; transform: scaleX(-1); pointer-events: none; }
+  #handBadge { position: absolute; left: 8px; bottom: 8px; padding: 4px 10px; font-size: .75rem; font-weight: 600; max-width: 62%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #stopBtn { position: absolute; right: 8px; bottom: 8px; padding: 5px 12px; font-size: .78rem; font-weight: 600; cursor: pointer; }
+
+  #caption {
+    position: fixed; left: 0; right: 0; bottom: 28px; z-index: 4;
+    display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 0 16px; text-align: center;
+  }
+  #name { padding: 10px 26px; font-size: clamp(1.4rem, 4.4vw, 2.5rem); font-weight: 800; letter-spacing: -0.03em; line-height: 1.1; max-width: 92vw; }
+  #sub { padding: 7px 16px; font-size: .95rem; max-width: 92vw; }
+  #sub:empty { display: none; }
+  #startBtn {
+    font: inherit; font-weight: 800; font-size: 1.15rem; letter-spacing: -0.01em;
+    background: #fff; color: #1c1b22; border: 0; border-radius: 999px; padding: 15px 34px; cursor: pointer;
+    box-shadow: 0 8px 24px rgba(0,0,0,.25);
+  }
+  #startBtn:hover { transform: scale(1.03); }
+  #startBtn:disabled { opacity: .6; cursor: progress; transform: none; }
+
+  #toast {
+    position: fixed; top: 68px; left: 50%; transform: translate(-50%, -20px); opacity: 0;
+    padding: 10px 20px; font-weight: 600; z-index: 8; pointer-events: none;
+    transition: opacity .25s, transform .25s; white-space: nowrap; max-width: 92vw; overflow: hidden; text-overflow: ellipsis;
+  }
+  #toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  /* collection sheet */
+  #dex {
+    position: fixed; inset: 0; z-index: 10; background: rgba(12, 10, 20, .94); color: #fff;
+    overflow-y: auto; padding: 72px 20px 40px;
+  }
+  #dex[hidden] { display: none; }
+  .dexTop { position: fixed; top: 16px; left: 20px; right: 20px; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .dexTop h2 { font-size: 1.1rem; font-weight: 800; }
+  .dexTop button { font: inherit; font-weight: 600; background: #fff; color: #1c1b22; border: 0; border-radius: 999px; padding: 9px 18px; cursor: pointer; }
+  .dexTop .ghost { background: transparent; color: #fff; border: 1.5px solid rgba(255,255,255,.5); }
+  .group { max-width: 980px; margin: 0 auto 28px; }
+  .group h3 { font-size: 1rem; font-weight: 800; margin-bottom: 4px; }
+  .group p { color: #a9a6bb; font-size: .85rem; margin-bottom: 12px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 10px; }
+  .tile {
+    position: relative; aspect-ratio: 1; border: 0; border-radius: 18px; background: rgba(255,255,255,.07);
+    cursor: pointer; padding: 8px; display: grid; place-items: center; font: inherit; color: #fff;
+  }
+  .tile:hover { background: rgba(255,255,255,.16); }
+  .tile img { width: 100%; height: 100%; object-fit: contain; display: block; }
+  .tile .glyph { font-size: 2.2rem; }
+  .tile.locked img, .tile.locked .glyph { filter: grayscale(1) brightness(.3); }
+  .tile .tag { position: absolute; right: 6px; bottom: 5px; font-size: .62rem; font-weight: 600; background: rgba(255,255,255,.18); border-radius: 99px; padding: 1px 6px; }
+
+  #debug {
+    position: fixed; right: 12px; bottom: 12px; z-index: 9; background: rgba(0,0,0,.72); color: #9fffb4;
+    font: 12px/1.35 ui-monospace, Menlo, Consolas, monospace; padding: 10px 12px; border-radius: 12px; white-space: pre; pointer-events: none;
+  }
+  #debug[hidden] { display: none; }
+
+
+  /* ---------- challenge game ---------- */
+  .hdrR { display: flex; gap: 10px; align-items: center; }
+  #playBtn { padding: 9px 20px; font-weight: 800; cursor: pointer; background: #fff; color: #1c1b22; }
+  #playBtn:hover { background: #f1f0f6; }
+  #playBtn[hidden] { display: none; }
+  .glass { background: var(--glass); color: #fff; -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); border-radius: 22px; }
+  #game { position: fixed; right: 16px; top: 68px; width: min(340px, calc(100vw - 32px)); z-index: 6; padding: 14px 16px 12px; display: grid; gap: 10px; transition: box-shadow .2s; }
+  #game[hidden] { display: none; }
+  .gtop { display: flex; justify-content: space-between; gap: 8px; font-weight: 600; font-size: .9rem; opacity: .92; }
+  #gScore { font-weight: 800; font-size: 1.05rem; }
+  .gmain { display: flex; gap: 12px; align-items: center; }
+  #gImg { width: 76px; height: 76px; object-fit: contain; flex: none; filter: drop-shadow(0 4px 6px rgba(0,0,0,.35)); }
+  #gName { font-weight: 800; font-size: 1.05rem; letter-spacing: -0.01em; line-height: 1.15; }
+  #gHint { font-size: .85rem; opacity: .88; margin-top: 4px; min-height: 1.2em; }
+  .gbar { height: 10px; border-radius: 99px; background: rgba(255,255,255,.2); overflow: hidden; }
+  #gFill { display: block; height: 100%; width: 100%; background: #7cffb2; border-radius: 99px; }
+  #gFill.low { background: #ff6b6b; }
+  .gfoot { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: .85rem; }
+  .gfoot button { font: inherit; font-weight: 600; font-size: .78rem; color: #fff; background: rgba(255,255,255,.16); border: 0; border-radius: 99px; padding: 5px 12px; cursor: pointer; }
+  .gfoot button:hover { background: rgba(255,255,255,.28); }
+  #game.win { box-shadow: 0 0 0 4px #7cffb2; }
+  #game.miss { box-shadow: 0 0 0 4px #ff6b6b; animation: shake .4s; }
+  @keyframes shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-7px); } 75% { transform: translateX(7px); } }
+  body.gameOn #toast { top: auto; bottom: 150px; }
+  #count { position: fixed; inset: 0; display: grid; place-items: center; z-index: 7; pointer-events: none;
+    font-size: clamp(6rem, 22vw, 16rem); font-weight: 800; letter-spacing: -0.04em; color: #fff; text-shadow: 0 8px 40px rgba(0,0,0,.45); }
+  #count[hidden] { display: none; }
+  #count.pop { animation: cpop .5s cubic-bezier(.3, 1.6, .5, 1); }
+  @keyframes cpop { from { transform: scale(.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  #results { position: fixed; inset: 0; z-index: 11; background: rgba(12, 10, 20, .94); color: #fff; overflow-y: auto; padding: 56px 20px 40px; }
+  #results[hidden] { display: none; }
+  .rbox { max-width: 560px; margin: 0 auto; text-align: center; }
+  .rbox h2 { font-size: 1.1rem; font-weight: 800; color: #b9b6cc; }
+  .rbig { font-size: clamp(4rem, 16vw, 6.5rem); font-weight: 800; letter-spacing: -0.04em; line-height: 1; margin: 8px 0 4px; }
+  .rline { color: #cfcde0; margin-top: 6px; }
+  .rbadge { display: inline-block; margin-top: 10px; background: #ffd45e; color: #1c1b22; font-weight: 800; border-radius: 99px; padding: 5px 14px; }
+  .rlist { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 10px; margin: 26px 0; }
+  .ritem { position: relative; background: rgba(255,255,255,.07); border-radius: 16px; padding: 8px 6px 6px; font-size: .75rem; }
+  .ritem img { width: 56px; height: 56px; object-fit: contain; display: block; margin: 0 auto 4px; }
+  .ritem.bad img { filter: grayscale(1) brightness(.5); }
+  .ritem .mark { position: absolute; top: 4px; right: 6px; font-weight: 800; }
+  .ritem.ok .mark { color: #7cffb2; } .ritem.bad .mark { color: #ff6b6b; }
+  .rbtns { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  .rbtns button { font: inherit; font-weight: 800; background: #fff; color: #1c1b22; border: 0; border-radius: 99px; padding: 13px 28px; cursor: pointer; }
+  .rbtns button.ghost { background: transparent; color: #fff; border: 1.5px solid rgba(255,255,255,.5); }
+
+
+  /* ---------- smart + share ---------- */
+  .hb { padding: 9px 14px; font-weight: 600; cursor: pointer; }
+  .hb:hover, #dexBtn:hover { background: rgba(20, 17, 30, .8); }
+  .dexTop { top: 0 !important; left: 0 !important; right: 0 !important; padding: 12px 20px; background: rgba(12,10,20,.97); flex-wrap: wrap; z-index: 2; }
+  #dex { padding-top: 110px; }
+  .tile.mine::after { content: "mine"; position: absolute; left: 6px; bottom: 5px; font-size: .62rem; font-weight: 800; background: #ffd45e; color: #1c1b22; border-radius: 99px; padding: 1px 6px; }
+  #tune { position: fixed; left: 50%; top: 76px; transform: translateX(-50%); width: min(420px, 92vw); z-index: 7; padding: 16px 18px; text-align: center; display: grid; gap: 8px; justify-items: center; }
+  #tune[hidden] { display: none; }
+  #tStep { font-size: .8rem; opacity: .75; font-weight: 600; }
+  #tTitle { font-size: 1.3rem; font-weight: 800; letter-spacing: -0.01em; line-height: 1.15; }
+  #tSub { font-size: .9rem; opacity: .85; min-height: 1.2em; }
+  #tImg { width: 84px; height: 84px; object-fit: contain; filter: drop-shadow(0 4px 6px rgba(0,0,0,.35)); }
+  #tune .gbar { width: 100%; }
+  #tFill { display: block; height: 100%; width: 0%; background: #ffd45e; border-radius: 99px; }
+  #tFill.cap { background: #7cffb2; }
+  #tCancel { font: inherit; font-weight: 600; font-size: .78rem; color: #fff; background: rgba(255,255,255,.16); border: 0; border-radius: 99px; padding: 5px 14px; cursor: pointer; }
+  #shareModal, #tileMenu { position: fixed; inset: 0; z-index: 14; background: rgba(12,10,20,.9); display: grid; place-items: center; padding: 20px; overflow: auto; }
+  #shareModal[hidden], #tileMenu[hidden] { display: none; }
+  .smBox, .tmBox { text-align: center; color: #fff; max-width: min(92vw, 520px); }
+  .smBox img { max-width: 100%; max-height: 66vh; border-radius: 18px; display: block; margin: 0 auto 16px; box-shadow: 0 12px 40px rgba(0,0,0,.5); }
+  .smBtns, .tmBtns { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  .tmBtns { flex-direction: column; align-items: center; }
+  .smBtns button, .tmBtns button { font: inherit; font-weight: 800; background: #fff; color: #1c1b22; border: 0; border-radius: 99px; padding: 12px 26px; cursor: pointer; }
+  .smBtns button.ghost, .tmBtns button.ghost { background: transparent; color: #fff; border: 1.5px solid rgba(255,255,255,.5); }
+  #shNote { margin-top: 12px; font-size: .8rem; color: #b9b6cc; }
+  .tmBox img { width: 170px; height: 170px; object-fit: contain; filter: drop-shadow(0 8px 14px rgba(0,0,0,.5)); }
+  #tmName { font-size: 1.5rem; font-weight: 800; margin: 8px 0 4px; }
+  #tmHint { color: #b9b6cc; min-height: 1.3em; margin-bottom: 16px; }
+  #practice { position: fixed; right: 16px; top: 68px; width: min(340px, calc(100vw - 32px)); z-index: 6; padding: 14px 16px 12px; display: grid; gap: 10px; }
+  #practice[hidden] { display: none; }
+  #pImg { width: 76px; height: 76px; object-fit: contain; flex: none; filter: drop-shadow(0 4px 6px rgba(0,0,0,.35)); }
+  #pName { font-weight: 800; font-size: 1.05rem; line-height: 1.15; }
+  #pSees { font-size: .8rem; opacity: .8; margin-top: 4px; }
+  #pFill { display: block; height: 100%; width: 0%; background: #ffd45e; border-radius: 99px; transition: width .12s; }
+  #pFill.ok { background: #7cffb2; }
+  #pTips { font-size: .85rem; line-height: 1.4; min-height: 3.6em; opacity: .95; }
+  #pStatus { font-weight: 800; color: #7cffb2; }
+  #pDone { font: inherit; font-weight: 600; font-size: .78rem; color: #fff; background: rgba(255,255,255,.16); border: 0; border-radius: 99px; padding: 5px 14px; cursor: pointer; }
+  @media (max-width: 560px) { #practice { top: 64px; right: 12px; width: calc(100vw - 150px); padding: 10px 12px; } #pImg { width: 56px; height: 56px; } }
+  #flashFx { position: fixed; inset: 0; background: #fff; opacity: 0; pointer-events: none; z-index: 15; }
+  #flashFx.go { animation: flashgo .35s ease-out; }
+  @keyframes flashgo { 0% { opacity: .85; } 100% { opacity: 0; } }
+  @media (max-width: 560px) { .lbl { display: none; } .hb, #playBtn, #dexBtn { padding: 8px 11px; } .brand { padding: 8px 12px; font-size: .9rem; } }
+
+  @media (max-width: 560px) {
+    #game { top: 64px; right: 12px; width: calc(100vw - 150px); padding: 10px 12px; }
+    #gImg { width: 56px; height: 56px; }
+    .hdrR { gap: 6px; }
+    #playBtn, #dexBtn { padding: 8px 12px; font-size: .85rem; }
+    #cam { width: 120px; top: 64px; left: 12px; border-radius: 16px; }
+    #name { padding: 8px 18px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } #startBtn:hover { transform: none; } }
+</style>
+</head>
+<body>
+<canvas id="gl"></canvas>
+
+<header>
+  <div class="pill brand">Emoji Mirror 3D</div>
+  <div class="hdrR"><button class="pill hb" id="snapBtn" type="button" aria-label="Take a photo">📸<span class="lbl"> Snap</span></button><button class="pill hb" id="tuneBtn" type="button" aria-label="Tune to your face">🎯<span class="lbl"> Tune</span></button><button class="pill" id="playBtn" type="button">▶ Play</button><button class="pill" id="dexBtn" type="button">Collection 0 / 0</button></div>
+</header>
+
+<div id="cam" hidden>
+  <video id="video" autoplay muted playsinline></video>
+  <canvas id="handCv"></canvas>
+  <span class="pill" id="handBadge">✋ starting</span>
+  <button class="pill" id="stopBtn" type="button">Stop</button>
+</div>
+
+<div id="toast" class="pill" role="status"></div>
+
+<div id="game" class="glass" hidden>
+  <div class="gtop"><span id="gRound"></span><span id="gScore">0</span></div>
+  <div class="gmain"><img id="gImg" alt=""><div><div id="gName"></div><div id="gHint"></div></div></div>
+  <div class="gbar"><i id="gFill"></i></div>
+  <div class="gfoot"><span id="gStreak"></span><span><button id="gMute" type="button">Sound on</button> <button id="gSkip" type="button">Skip</button> <button id="gQuit" type="button">Quit</button></span></div>
+</div>
+<div id="count" hidden aria-hidden="true"></div>
+<div id="tune" class="glass" hidden>
+  <div id="tStep"></div><img id="tImg" alt=""><div id="tTitle"></div><div id="tSub"></div>
+  <div class="gbar"><i id="tFill"></i></div><button id="tCancel" type="button">Cancel</button>
+</div>
+<div id="flashFx"></div>
+<div id="practice" class="glass" hidden>
+  <div class="gtop"><span>Practice</span><span id="pPct">0%</span></div>
+  <div class="gmain"><img id="pImg" alt=""><div><div id="pName"></div><div id="pSees"></div></div></div>
+  <div class="gbar"><i id="pFill"></i></div>
+  <div id="pTips"></div>
+  <div class="gfoot"><span id="pStatus"></span><span><button id="pDone" type="button">Done</button></span></div>
+</div>
+<aside id="tileMenu" hidden aria-label="Emoji options"><div class="tmBox">
+  <img id="tmImg" alt=""><div id="tmName"></div><div id="tmHint"></div>
+  <div class="tmBtns"><button id="tmShow" type="button">Show in 3D</button><button id="tmPractice" type="button">Practice this one</button><button id="tmTeach" type="button">Teach it my face</button><button class="ghost" id="tmForget" type="button">Forget my version</button><button class="ghost" id="tmClose" type="button">Close</button></div>
+</div></aside>
+<aside id="shareModal" hidden aria-label="Share"><div class="smBox">
+  <img id="shImg" alt="Your card"><div class="smBtns"><button id="shShare" type="button">Share</button><button id="shSave" type="button">Save image</button><button class="ghost" id="shClose" type="button">Close</button></div><p id="shNote"></p>
+</div></aside>
+<aside id="results" hidden aria-label="Game results"><div class="rbox" id="rbox"></div></aside>
+
+<div id="caption">
+  <div id="name" class="pill">Make a face, get the emoji</div>
+  <div id="sub" class="pill">Your camera stays on this device. Nothing is uploaded.</div>
+  <button id="startBtn" type="button">Start camera</button>
+</div>
+
+<aside id="dex" hidden aria-label="Emoji collection">
+  <div class="dexTop">
+    <h2 id="dexTitle">Collection</h2>
+    <div>
+      <button class="ghost" id="dexShare" type="button">Share collection</button>
+      <button class="ghost" id="calReset" type="button">Reset tuning</button>
+      <button class="ghost" id="dexReset" type="button">Reset progress</button>
+      <button id="dexClose" type="button">Close</button>
+    </div>
+  </div>
+  <div id="dexBody"></div>
+</aside>
+
+<pre id="debug" hidden></pre>
+
+<script type="module">
+/* ============================================================
+   PURE LOGIC: emoji roster, expression scoring, hand gestures
+   ============================================================ */
+/* ==PURE START== */
+const BASE = "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/";
+const slug = s => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+
+// Each rule: feature -> [min, max]. Features are 0..1 (see feats()).
+// kind: "face" = detected from expression, "hand" = detected from hand near face,
+//       "move" = detected from motion, "tap" = can't be detected, tap in the collection to preview
+const GROUPS = [
+  { id: "smile", title: "Smiles", note: "Happy faces, from a gentle smile to a full-on laugh." },
+  { id: "tongue", title: "Tongues, kisses and puffs", note: "Mouth tricks." },
+  { id: "shock", title: "Surprise and fear", note: "Open wide and raise your brows." },
+  { id: "sad", title: "Sad and worried", note: "Frowns, tears and tired faces." },
+  { id: "grump", title: "Angry, sly and sleepy", note: "Glares, smirks and snoozes." },
+  { id: "move", title: "Moves and hands", note: "Shake your head, chatter your teeth, or bring a hand up to your face." },
+  { id: "sign", title: "Hand signs", note: "Show a hand to the camera. These work even when your face is out of view." },
+  { id: "tap", title: "Tap to preview", note: "These need props or context a camera can't see (masks, hats, thermometers). Tap one to see it in 3D." },
+];
+
+const R = (group, ch, folder, hint, rule, extra = {}) => ({
+  group, ch, folder, hint, r: rule, kind: "face", id: slug(folder),
+  path: extra.path || `${folder}/3D/${folder.toLowerCase().replace(/ /g, "_")}_3d.png`, ...extra,
+});
+
+const SIGN = (ch, folder, hint) => R("sign", ch, folder, hint, null,
+  { kind: "sign", path: `${folder}/Default/3D/${folder.toLowerCase().replace(/ /g, "_")}_3d_default.png` });
+
+const ROSTER = [
+  // ---- Smiles
+  R("smile","😀","Grinning face","Big open smile",{smile:[.45,1],jaw:[.1,.4],squint:[0,.45]}),
+  R("smile","😃","Grinning face with big eyes","Smile wide and open your eyes wide",{smile:[.45,1],jaw:[.25,.7],wide:[.2,1],squint:[0,.35]}),
+  R("smile","😄","Grinning face with smiling eyes","Laugh with squinty eyes",{smile:[.5,1],jaw:[.2,.6],squint:[.4,1]}),
+  R("smile","😁","Beaming face with smiling eyes","Smile with teeth, mouth mostly shut",{smile:[.55,1],jaw:[0,.2],squint:[.35,1]}),
+  R("smile","😆","Grinning squinting face","Laugh hard with eyes squeezed",{smile:[.6,1],jaw:[.3,.8],squint:[.65,1]}),
+  R("smile","😅","Grinning face with sweat","A nervous smile with brows up",{smile:[.35,.85],browUp:[.45,1],stretch:[.2,1]}),
+  R("smile","😂","Face with tears of joy","Crack up: huge laugh, eyes shut",{smile:[.7,1],jaw:[.4,1],squint:[.6,1],blink:[.3,1]}),
+  R("smile","🤣","Rolling on the floor laughing","Huge laugh while tilting your head",{smile:[.6,1],jaw:[.35,1],tilt:[.25,1]}),
+  R("smile","🙂","Slightly smiling face","A gentle smile",{smile:[.15,.42],jaw:[0,.12],squint:[0,.35],blink:[0,.35],smileDiff:[0,.3],tilt:[0,.4]}),
+  R("smile","🙃","Upside-down face","Tilt your head way over to one side",{tilt:[.5,1],smile:[.05,1]}),
+  R("smile","😉","Winking face","Wink with a smile",{wink:[.5,1],smile:[.12,1],tongue:[0,.2],pucker:[0,.35]}),
+  R("smile","😊","Smiling face with smiling eyes","A warm smile with happy squinty eyes",{smile:[.3,.65],squint:[.3,1],jaw:[0,.2]}),
+  R("smile","☺️","Smiling face","A soft smile, eyes slowly closing",{smile:[.25,.6],jaw:[0,.1],blink:[.25,.6],squint:[0,.3],wink:[0,.3]}),
+  R("smile","😇","Smiling face with halo","Smile and look up like an angel",{smile:[.25,.6],lookUp:[.35,1],browUp:[.12,1]}),
+  R("smile","🥰","Smiling face with hearts","A soft smile with a little head tilt",{smile:[.3,.8],tilt:[.12,.45],browUp:[.12,.6],jaw:[0,.25]}),
+  R("smile","😍","Smiling face with heart-eyes","Smile with big wide-open eyes",{smile:[.5,1],wide:[.35,1],browUp:[0,.45],jaw:[0,.35]}),
+  R("smile","🤩","Star-struck","Grin, mouth open, eyes super wide",{smile:[.45,1],wide:[.55,1],jaw:[.25,1]}),
+  R("smile","🥳","Partying face","Big grin, open mouth, slight tilt",{smile:[.6,1],jaw:[.25,.7],tilt:[.12,.3],browUp:[.12,1]}),
+  R("smile","😎","Smiling face with sunglasses","A cool smile with low brows",{smile:[.3,.7],browDown:[.22,.7],squint:[0,.5]}),
+  R("smile","😈","Smiling face with horns","An evil grin with brows down",{smile:[.3,1],browDown:[.4,1]}),
+  R("smile","🤓","Nerd face","Show your top teeth with lips apart",{upperUp:[.35,1],jaw:[0,.15],smile:[0,.3]}),
+  R("smile","😌","Relieved face","Eyes closed with a little smile",{blink:[.65,1],smile:[.12,.55],jaw:[0,.15]}),
+  R("smile","🥲","Smiling face with tear","Smile with trembling brows",{smile:[.3,.8],browUp:[.35,1],blink:[.2,.7]}),
+  R("smile","🥹","Face holding back tears","Smile and frown at the same time",{frown:[.15,.6],smile:[.12,.6],browUp:[.3,1]}),
+  // ---- Tongues, kisses, puffs
+  R("tongue","😋","Face savoring food","Smile and lick your lips",{smile:[.35,1],tongue:[.15,1],wink:[0,.35]}),
+  R("tongue","😛","Face with tongue","Stick your tongue out",{tongue:[.3,1],smile:[0,.35],wink:[0,.4],blink:[0,.55]}),
+  R("tongue","😜","Winking face with tongue","Tongue out and wink",{tongue:[.3,1],wink:[.45,1]}),
+  R("tongue","😝","Squinting face with tongue","Tongue out, eyes shut tight",{tongue:[.3,1],blink:[.55,1],wink:[0,.4]}),
+  R("tongue","🤪","Zany face","Tongue out, eyes bugged",{tongue:[.3,1],wide:[.3,1],blink:[0,.3]}),
+  R("tongue","😗","Kissing face","Pucker up",{pucker:[.45,1],blink:[0,.4],smile:[0,.2]}),
+  R("tongue","😚","Kissing face with closed eyes","Pucker and shut your eyes",{pucker:[.45,1],blink:[.6,1]}),
+  R("tongue","😙","Kissing face with smiling eyes","Pucker with a smile",{pucker:[.45,1],smile:[.1,1],squint:[.3,1]}),
+  R("tongue","😘","Face blowing a kiss","Pucker and wink",{pucker:[.45,1],wink:[.45,1]}),
+  R("tongue","😮‍💨","Face exhaling","Puff your cheeks, then blow",{puff:[.3,1],pucker:[.2,1],browDown:[0,.3]}),
+  R("tongue","😤","Face with steam from nose","Puff your cheeks and glare",{puff:[.3,1],browDown:[.25,1]}),
+  // ---- Surprise and fear
+  R("shock","😮","Face with open mouth","Open your mouth wide",{jaw:[.35,.85],browUp:[0,.4],wide:[0,.4],smile:[0,.2],frown:[0,.25]}),
+  R("shock","😯","Hushed face","A small gasp with brows up",{jaw:[.08,.35],browUp:[.25,1],wide:[.15,1],smile:[0,.15],frown:[0,.25]}),
+  R("shock","😲","Astonished face","Gasp with wide eyes and raised brows",{jaw:[.35,1],browUp:[.4,1],wide:[.4,1]}),
+  R("shock","😳","Flushed face","Eyes wide, mouth shut, frozen",{wide:[.45,1],jaw:[0,.12],smile:[0,.15],browUp:[0,.5]}),
+  R("shock","😱","Face screaming in fear","Scream: jaw drop, eyes and brows up",{jaw:[.6,1],browUp:[.5,1],wide:[.4,1]}),
+  R("shock","🤯","Exploding head","Mind blown: open everything wide",{jaw:[.4,1],wide:[.7,1],browUp:[.65,1],browOuter:[.5,1]}),
+  R("shock","😨","Fearful face","Brows up, mouth stretched",{browUp:[.45,1],stretch:[.25,1],jaw:[.05,.5],wide:[.25,1]}),
+  R("shock","😰","Anxious face with sweat","Worried brows, tight mouth",{browUp:[.4,1],stretch:[.15,1],jaw:[0,.2],frown:[0,.3]}),
+  R("shock","😧","Anguished face","Brows up, frown, mouth open",{browUp:[.35,1],frown:[.25,1],jaw:[.15,.6]}),
+  R("shock","😦","Frowning face with open mouth","Frown with your mouth open",{frown:[.2,1],jaw:[.2,.6],browUp:[0,.35]}),
+  R("shock","🥺","Pleading face","Puppy eyes: lift your inner brows",{browUp:[.55,1],wide:[.2,1],frown:[0,.4],jaw:[0,.15]}),
+  R("shock","🥱","Yawning face","A big yawn",{jaw:[.6,1],blink:[.45,1],browUp:[0,.5]}),
+  R("shock","😬","Grimacing face","Bare your teeth",{stretch:[.45,1],jaw:[0,.25],smile:[0,.35],upperUp:[.2,1]}),
+  R("shock","🙄","Face with rolling eyes","Roll your eyes up",{lookUp:[.55,1],smile:[0,.3]}),
+  // ---- Sad and worried
+  R("sad","🙁","Slightly frowning face","A small frown",{frown:[.15,.4],jaw:[0,.12],browDown:[0,.3]}),
+  R("sad","☹️","Frowning face","A big frown",{frown:[.38,1],jaw:[0,.15],browUp:[0,.4]}),
+  R("sad","😞","Disappointed face","Frown and look down",{frown:[.15,.7],lookDown:[.35,1],blink:[0,.5]}),
+  R("sad","😔","Pensive face","Look down with half-shut eyes",{lookDown:[.4,1],blink:[.25,.8],smile:[0,.15],frown:[0,.3]}),
+  R("sad","😟","Worried face","Brows up with a small frown",{browUp:[.3,1],frown:[.1,.4],jaw:[0,.12]}),
+  R("sad","😥","Sad but relieved face","Sad eyes looking down",{frown:[.1,.4],browUp:[.25,.6],lookDown:[.3,1]}),
+  R("sad","😢","Crying face","Frown with your brows up",{frown:[.3,1],browUp:[.35,1],jaw:[0,.3]}),
+  R("sad","😭","Loudly crying face","Wail with your mouth open",{frown:[.3,1],browUp:[.3,1],jaw:[.3,1]}),
+  R("sad","😩","Weary face","Frown, mouth open, eyes squinting",{jaw:[.3,1],frown:[.2,1],squint:[.3,1]}),
+  R("sad","😫","Tired face","Squint with a stretched mouth",{squint:[.5,1],stretch:[.3,1],jaw:[.2,.8],browDown:[.2,1]}),
+  R("sad","😣","Persevering face","Squint hard and frown",{squint:[.5,1],frown:[.1,.5],jaw:[0,.25]}),
+  R("sad","😖","Confounded face","Scrunch your whole face",{squint:[.6,1],browDown:[.35,1],frown:[.2,1]}),
+  R("sad","😕","Confused face","Mouth to one side, brows up",{frown:[.1,.4],browUp:[.25,.6],shift:[.25,1]}),
+  R("sad","🫤","Face with diagonal mouth","Slide your mouth sideways",{shift:[.4,1],smile:[0,.2],frown:[0,.3]}),
+  // ---- Angry, sly, sleepy
+  R("grump","😠","Angry face","Brows down with a frown",{browDown:[.45,1],frown:[.1,1],jaw:[0,.25],smile:[0,.2]}),
+  R("grump","😡","Pouting face","Furious, mouth a little open",{browDown:[.5,1],jaw:[.2,.7],sneer:[0,.5]}),
+  R("grump","🤬","Face with symbols on mouth","Snarl with a scrunched nose",{browDown:[.5,1],jaw:[.35,1],sneer:[.45,1]}),
+  R("grump","👿","Angry face with horns","Glare with a sinister smirk",{browDown:[.5,1],smile:[.12,.35]}),
+  R("grump","😒","Unamused face","Half-lidded eyes, flat mouth",{blink:[.3,.65],smile:[0,.15],browDown:[0,.35],frown:[.05,.35]}),
+  R("grump","😑","Expressionless face","A blank stare with eyes half shut",{blink:[.4,.8],idle:[.5,1]}),
+  R("grump","😏","Smirking face","Smirk with one side of your mouth",{smileDiff:[.3,1],smile:[.12,.55]}),
+  R("grump","🤨","Face with raised eyebrow","Lift just one eyebrow",{browOuterDiff:[.35,1],smile:[0,.3],wink:[0,.35]}),
+  R("grump","🧐","Face with monocle","One brow up, one eye squinting",{browOuterDiff:[.3,1],wink:[.2,.55],smile:[0,.3]}),
+  R("grump","😐","Neutral face","Relax everything",{idle:[.65,1]}),
+  R("grump","😶","Face without mouth","Tuck your lips in",{rollLow:[.4,1],rollUp:[.4,1]}),
+  R("grump","🤐","Zipper-mouth face","Press your lips together tightly",{press:[.5,1],jaw:[0,.08],rollLow:[0,.4]}),
+  R("grump","🤢","Nauseated face","Scrunch your nose and frown",{sneer:[.4,1],frown:[.2,1],jaw:[0,.35],browDown:[.1,1]}),
+  R("grump","🤮","Face vomiting","Scrunch your nose, mouth wide",{sneer:[.4,1],jaw:[.4,1],frown:[.1,1]}),
+  R("grump","🥴","Woozy face","Cross your eyes",{lookIn:[.5,1],smile:[0,.5]}),
+  R("grump","😵","Knocked-out face","Eyes shut, mouth sagging open",{blink:[.75,1],jaw:[.25,.6],stretch:[.15,1]}),
+  R("grump","😴","Sleeping face","Keep your eyes closed for two seconds",{blink:[.8,1],smile:[0,.12],drowsy:[.4,1]}),
+  R("grump","😪","Sleepy face","Eyes closed for a moment",{blink:[.75,1],smile:[0,.12],drowsy:[.15,.45],jaw:[0,.3]}),
+  // ---- Moves and hands
+  R("move","🫨","Shaking face","Shake your head side to side",null,{kind:"move"}),
+  R("move","🥶","Cold face","Chatter your teeth",null,{kind:"move"}),
+  R("move","🤫","Shushing face","Hold a finger to your lips",null,{kind:"hand"}),
+  R("move","🤭","Face with hand over mouth","Cover your mouth with your hand",null,{kind:"hand"}),
+  R("move","🫢","Face with open eyes and hand over mouth","Cover your mouth with wide eyes",null,{kind:"hand"}),
+  R("move","🙈","See-no-evil monkey","Cover your eyes with a hand",null,{kind:"hand"}),
+  R("move","🤔","Thinking face","Put a finger on your chin",null,{kind:"hand"}),
+  R("move","🤦","Person facepalming","Palm on your forehead, frowning",null,{kind:"hand",path:"Person facepalming/Default/3D/person_facepalming_3d_default.png"}),
+  R("move","🫡","Saluting face","Hand at your forehead, calm face",null,{kind:"hand"}),
+  // ---- Hand signs (work without your face in view)
+  SIGN("👍","Thumbs up","Thumb up, other fingers curled"),
+  SIGN("👎","Thumbs down","Thumb down, other fingers curled"),
+  SIGN("✌️","Victory hand","Index and middle finger up"),
+  SIGN("🤟","Love-you gesture","Thumb, index and pinky out"),
+  SIGN("🤘","Sign of the horns","Index and pinky up"),
+  SIGN("👌","Ok hand","Touch thumb to index, other fingers up"),
+  SIGN("✊","Raised fist","Make a fist"),
+  SIGN("✋","Raised hand","Show an open palm"),
+  SIGN("👋","Waving hand","Open palm, wave side to side"),
+  SIGN("☝️","Index pointing up","Point one finger up"),
+  SIGN("🤙","Call me hand","Thumb and pinky out"),
+  SIGN("🙏","Folded hands","Press both palms together"),
+  SIGN("🫶","Heart hands","Make a heart with both hands"),
+  SIGN("🤏","Pinching hand","Pinch thumb and index, others curled"),
+  // ---- Tap to preview
+  R("tap","🤗","Hugging face","",null,{kind:"tap"}),
+  R("tap","🤑","Money-mouth face","",null,{kind:"tap"}),
+  R("tap","🤠","Cowboy hat face","",null,{kind:"tap"}),
+  R("tap","🥸","Disguised face","",null,{kind:"tap"}),
+  R("tap","🤡","Clown face","",null,{kind:"tap"}),
+  R("tap","🤥","Lying face","",null,{kind:"tap"}),
+  R("tap","😷","Face with medical mask","",null,{kind:"tap"}),
+  R("tap","🤒","Face with thermometer","",null,{kind:"tap"}),
+  R("tap","🤕","Face with head-bandage","",null,{kind:"tap"}),
+  R("tap","🤧","Sneezing face","",null,{kind:"tap"}),
+  R("tap","🥵","Hot face","",null,{kind:"tap"}),
+  R("tap","🫠","Melting face","",null,{kind:"tap"}),
+  R("tap","😵‍💫","Face with spiral eyes","",null,{kind:"tap"}),
+  R("tap","😶‍🌫️","Face in clouds","",null,{kind:"tap"}),
+  R("tap","🫣","Face with peeking eye","",null,{kind:"tap"}),
+  R("tap","🫥","Dotted line face","",null,{kind:"tap"}),
+  R("tap","💀","Skull","",null,{kind:"tap"}),
+  R("tap","🙉","Hear-no-evil monkey","",null,{kind:"tap"}),
+  R("tap","🙊","Speak-no-evil monkey","",null,{kind:"tap"}),
+];
+
+const BY_ID = Object.fromEntries(ROSTER.map(e => [e.id, e]));
+const DETECT = ROSTER.filter(e => e.kind === "face");
+const urlOf = e => BASE + e.path.split("/").map(encodeURIComponent).join("/");
+
+const clamp01 = v => Math.max(0, Math.min(1, v));
+const SOFT = 0.13;
+function mem(v, [lo, hi]) {
+  if (v < lo) return Math.max(0, 1 - (lo - v) / SOFT);
+  if (v > hi) return Math.max(0, 1 - (v - hi) / SOFT);
+  return 1;
+}
+function scoreRule(e, f) {
+  let sum = 0, min = 1, n = 0;
+  for (const k in e.r) {
+    const m = mem(f[k] ?? 0, e.r[k]);
+    sum += m; if (m < min) min = m; n++;
+  }
+  if (min < 0.15) return 0;
+  return (0.5 * sum / n + 0.5 * min) * (1 + 0.04 * n);
+}
+
+// Turn raw blendshape scores (+ head pose, timers) into 0..1 features
+function feats(b, pose, extra) {
+  const g = k => b[k] || 0, avg = (a, c) => (g(a) + g(c)) / 2;
+  const f = {};
+  f.smile = avg("mouthSmileLeft", "mouthSmileRight");
+  f.smileDiff = Math.abs(g("mouthSmileLeft") - g("mouthSmileRight"));
+  f.frown = avg("mouthFrownLeft", "mouthFrownRight");
+  f.jaw = g("jawOpen");
+  const bl = g("eyeBlinkLeft"), br = g("eyeBlinkRight");
+  f.blink = (bl + br) / 2; f.wink = Math.abs(bl - br);
+  f.wide = avg("eyeWideLeft", "eyeWideRight");
+  f.squint = avg("eyeSquintLeft", "eyeSquintRight");
+  f.browUp = g("browInnerUp");
+  const bol = g("browOuterUpLeft"), bor = g("browOuterUpRight");
+  f.browOuter = Math.max(bol, bor); f.browOuterDiff = Math.abs(bol - bor);
+  f.browDown = avg("browDownLeft", "browDownRight");
+  f.pucker = g("mouthPucker"); f.funnel = g("mouthFunnel");
+  f.tongue = g("tongueOut"); f.puff = g("cheekPuff");
+  f.sneer = avg("noseSneerLeft", "noseSneerRight");
+  f.press = avg("mouthPressLeft", "mouthPressRight");
+  f.stretch = avg("mouthStretchLeft", "mouthStretchRight");
+  f.upperUp = avg("mouthUpperUpLeft", "mouthUpperUpRight");
+  f.rollLow = g("mouthRollLower"); f.rollUp = g("mouthRollUpper");
+  f.lookUp = avg("eyeLookUpLeft", "eyeLookUpRight");
+  f.lookDown = avg("eyeLookDownLeft", "eyeLookDownRight");
+  f.lookIn = avg("eyeLookInLeft", "eyeLookInRight");
+  f.shift = Math.max(g("mouthLeft"), g("mouthRight"));
+  f.idle = clamp01(1 - Math.max(f.smile * 1.6, f.frown * 1.6, f.jaw * 2.2, f.browUp * 1.2, f.browDown * 1.2,
+    f.pucker, f.tongue, f.press, f.stretch * 1.5, f.wink * 1.2, f.squint * 0.8, f.sneer));
+  f.tilt = clamp01(Math.abs(pose?.roll || 0) / (70 * Math.PI / 180));
+  f.drowsy = clamp01((extra?.closedMs || 0) / 3000);
+  return f;
+}
+
+function classify(f, curId, extra = {}) {
+  if (extra.handId) return { id: extra.handId, score: 2, top: [], all: {} };
+  if (extra.shake) return { id: "shaking-face", score: 2, top: [], all: {} };
+  if (extra.chatter) return { id: "cold-face", score: 1.8, top: [], all: {} };
+  let best = null, bs = 0; const list = [], all = {};
+  for (const e of DETECT) {
+    const raw = scoreRule(e, f); all[e.id] = raw;
+    const s = e.id === curId ? raw * 1.1 : raw;      // hysteresis: stick with the current emoji
+    list.push([e.id, s]);
+    if (s > bs) { bs = s; best = e.id; }
+  }
+  // faces the person taught the app
+  for (const c of (extra.custom || [])) {
+    const cs = customScore(c.vecs, f);
+    if (cs < 0.55) continue;
+    const raw = 0.6 + 0.8 * cs; all[c.id] = Math.max(all[c.id] || 0, raw);
+    const s = c.id === curId ? raw * 1.1 : raw;
+    list.push([c.id + " (yours)", s]);
+    if (s > bs) { bs = s; best = c.id; }
+  }
+  list.sort((a, b) => b[1] - a[1]);
+  if (!best || bs < 0.5) best = "neutral-face";
+  return { id: best, score: bs, top: list.slice(0, 3), all };
+}
+
+// Hand near face -> emoji id. Points are in pixels. ref = face reference points (pixels).
+// Distances are in "face widths" (cheek to cheek). Roughly: eyes->mouth 0.5, mouth->chin 0.33, forehead->eyes 0.4.
+function handGesture(hand, ref, f, dbg) {
+  const d = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+  const ids = [0, 5, 9, 13, 17];
+  const palm = { x: ids.reduce((s, i) => s + hand[i].x, 0) / 5, y: ids.reduce((s, i) => s + hand[i].y, 0) / 5 };
+  const fw = ref.fw;
+  const scale = d(hand[0], hand[9]) / fw;            // how big the hand looks next to the face
+  const dMouthPalm = d(palm, ref.mouth) / fw, dMouthIdx = d(hand[8], ref.mouth) / fw;
+  const dEyes = d(palm, ref.eyes) / fw, dFore = d(palm, ref.fore) / fw, dChinIdx = d(hand[8], ref.chin) / fw;
+  const wr = hand[0];
+  const midCurled = d(hand[12], wr) < d(hand[9], wr) * 1.4;
+  const idxUp = d(hand[8], wr) > d(hand[5], wr) * 1.15;
+  // how much of the hand (21 points) sits inside each zone of the face
+  const R = fw * 0.4;
+  const inZone = cs => hand.filter(p => cs.some(c => Math.hypot(p.x - c.x, p.y - c.y) < R)).length / hand.length;
+  const fEyes = inZone(ref.eyeL && ref.eyeR ? [ref.eyeL, ref.eyeR] : [ref.eyes]), fMouth = inZone([ref.mouth]), fFore = inZone([ref.fore]);
+  if (dbg) Object.assign(dbg, { scale, dMouthPalm, dMouthIdx, dEyes, dFore, dChinIdx, fEyes, fMouth, fFore, midCurled, idxUp });
+
+  if (scale < 0.3 || scale > 1.8) return null;       // hand far in front of or behind the face: not touching it
+
+  // finger raised to the lips (palm stays away from the mouth)
+  if (dMouthIdx < 0.35 && idxUp && midCurled && dMouthPalm > 0.45) return "shushing-face";
+
+  // a zone counts if the palm is close OR a good share of the hand is inside it; best overlap wins
+  const regions = [["eyes", dEyes, 0.45, fEyes], ["mouth", dMouthPalm, 0.5, fMouth], ["fore", dFore, 0.55, fFore]];
+  let best = null;
+  for (const [name, dd, lim, frac] of regions) {
+    if (dd >= lim && frac < 0.33) continue;
+    const score = frac + Math.max(0, 1 - dd / lim) * 0.5;
+    if (!best || score > best.score) best = { name, score };
+  }
+  if (best) {
+    if (best.name === "eyes") return "see-no-evil-monkey";
+    if (best.name === "mouth") return (f.wide || 0) > 0.4 ? "face-with-open-eyes-and-hand-over-mouth" : "face-with-hand-over-mouth";
+    return ((f.browDown || 0) < 0.2 && (f.frown || 0) < 0.2 && (f.blink || 0) < 0.4) ? "saluting-face" : "person-facepalming";
+  }
+  // finger or fist resting on the chin
+  if (dChinIdx < 0.5 && dMouthPalm > 0.4) return "thinking-face";
+  return null;
+}
+
+// ---------- tuning, custom faces, hand signs, challenge links ----------
+const mean = a => a.length ? a.reduce((s, v) => s + v, 0) / a.length : 0;
+
+// Re-center and re-scale raw blendshapes using a person's own neutral face and their biggest expressions
+function calibrate(sm, cal) {
+  if (!cal) return sm;
+  const out = {};
+  for (const k in sm) out[k] = clamp01((sm[k] - (cal.base[k] || 0)) * (cal.gain[k] || 1));
+  return out;
+}
+function buildCal(neutral, poses) {
+  const keys = new Set(); neutral.forEach(s => Object.keys(s).forEach(k => keys.add(k)));
+  poses.forEach(ss => ss.forEach(s => Object.keys(s).forEach(k => keys.add(k))));
+  const base = {}, gain = {}, peak = {};
+  for (const k of keys) base[k] = mean(neutral.map(s => s[k] || 0));
+  for (const samples of poses) for (const k of keys) {
+    const vals = samples.map(s => s[k] || 0).sort((a, b) => a - b);
+    const p = vals[Math.min(vals.length - 1, Math.floor(vals.length * 0.9))] ?? 0;   // 90th percentile ignores spikes
+    if (peak[k] === undefined || p > peak[k]) peak[k] = p;
+  }
+  for (const k of keys) {
+    const range = (peak[k] ?? 0) - base[k];
+    gain[k] = range >= 0.15 ? Math.max(0.8, Math.min(2, 0.7 / range)) : 1;   // only rescale what they actually exercised
+  }
+  return { v: 1, base, gain };
+}
+
+// "Teach it a face": compare the current features to a saved feature vector
+const CUSTOM_KEYS = ["smile","smileDiff","frown","jaw","blink","wink","wide","squint","browUp","browDown","browOuterDiff","pucker","funnel",
+  "tongue","puff","sneer","press","stretch","upperUp","rollLow","rollUp","lookUp","lookDown","lookIn","shift","tilt"];
+const vecOf = f => CUSTOM_KEYS.map(k => f[k] || 0);
+function customScore(vecs, f) {
+  const list = Array.isArray(vecs[0]) ? vecs : [vecs];   // one or several taught examples
+  const v = vecOf(f); let best = 0;
+  for (const vec of list) {
+    let s = 0;
+    for (let i = 0; i < v.length; i++) { const d = v[i] - vec[i]; s += d * d; }
+    best = Math.max(best, clamp01(1 - Math.max(0, Math.sqrt(s / v.length) - 0.06) / 0.16));
+  }
+  return best;
+}
+
+// ---- hand signs from landmarks (pixels) ----
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+const centerOf = hd => ({ x: [0, 5, 9, 13, 17].reduce((s, i) => s + hd[i].x, 0) / 5, y: [0, 5, 9, 13, 17].reduce((s, i) => s + hd[i].y, 0) / 5 });
+const dist3 = (a, b) => Math.hypot(a.x - b.x, a.y - b.y, (a.z || 0) - (b.z || 0));
+// how straight is a 4-joint chain? 1 = ruler straight, 0 = bent at right angles
+function straightness(p, a, b, c, d) {
+  const v = (i, j) => ({ x: p[j].x - p[i].x, y: p[j].y - p[i].y, z: (p[j].z || 0) - (p[i].z || 0) });
+  const cos = (u, w) => (u.x * w.x + u.y * w.y + u.z * w.z) / ((Math.hypot(u.x, u.y, u.z) || 1) * (Math.hypot(w.x, w.y, w.z) || 1));
+  const v1 = v(a, b), v2 = v(b, c), v3 = v(c, d);
+  return (cos(v1, v2) + cos(v2, v3)) / 2;
+}
+function fingerStates(hd) {
+  const wr = hd[0], size = dist(hd[0], hd[9]) || 1, w = hd.w;
+  if (w && w.length >= 21) {
+    // MediaPipe's 3D world landmarks: joint angles don't change when the hand turns or tilts
+    const wsize = dist3(w[0], w[9]) || 1;
+    const ext = (a, b, c, d) => straightness(w, a, b, c, d) > 0.72;
+    return { idx: ext(5, 6, 7, 8), mid: ext(9, 10, 11, 12), ring: ext(13, 14, 15, 16), pink: ext(17, 18, 19, 20),
+      thumb: straightness(w, 1, 2, 3, 4) > 0.6 && dist3(w[4], w[5]) > wsize * 0.5, size, wsize };
+  }
+  const ext = (tip, pip) => dist(hd[tip], wr) > dist(hd[pip], wr) * 1.1;   // fallback: tip farther from the wrist than the middle joint
+  const thumb = dist(hd[4], hd[5]) > size * 0.5 && dist(hd[4], hd[17]) > dist(hd[3], hd[17]);
+  return { idx: ext(8, 6), mid: ext(12, 10), ring: ext(16, 14), pink: ext(20, 18), thumb, size, wsize: size };
+}
+function handShape(hd) {
+  const s = fingerStates(hd), { idx, mid, ring, pink, thumb, size } = s;
+  const W = hd.w && hd.w.length >= 21 ? hd.w : null;
+  const D = (i, j) => W ? dist3(W[i], W[j]) : dist(hd[i], hd[j]);
+  const sz = W ? s.wsize : size;
+  const pinch = D(4, 8) < sz * 0.35 && D(8, 0) > D(5, 0) * 0.9;
+  const n = [idx, mid, ring, pink].filter(Boolean).length;
+  if (pinch && mid && ring && pink) return "ok-hand";
+  if (pinch && !mid && !ring && !pink) return "pinching-hand";
+  if (thumb && n === 0) {
+    if (hd[4].y < hd[2].y - size * 0.6) return "thumbs-up";
+    if (hd[4].y > hd[2].y + size * 0.6) return "thumbs-down";
+    return null;
+  }
+  if (idx && mid && !ring && !pink) return "victory-hand";
+  if (thumb && idx && !mid && !ring && pink) return "love-you-gesture";
+  if (!thumb && idx && !mid && !ring && pink) return "sign-of-the-horns";
+  if (thumb && !idx && !mid && !ring && pink) return "call-me-hand";
+  if (idx && !mid && !ring && !pink && hd[8].y < hd[5].y - size * 0.8) return "index-pointing-up";
+  if (n === 4) return "raised-hand";
+  if (n === 0 && !thumb) return "raised-fist";
+  return null;
+}
+function twoHandShape(a, b) {
+  const sa = fingerStates(a), sb = fingerStates(b), size = (sa.size + sb.size) / 2;
+  const dp = dist(centerOf(a), centerOf(b));
+  const open = s => s.idx && s.mid && s.ring && s.pink;
+  if (dp < size * 1.3 && open(sa) && open(sb)) return "folded-hands";
+  if (dist(a[4], b[4]) < size * 0.8 && dist(a[8], b[8]) < size * 0.9 && dp > size && dp < size * 3.2) return "heart-hands";
+  return null;
+}
+
+// ---- challenge links: the 10 target emojis + the score to beat, packed in the URL hash ----
+function encodeChallenge(ids, score) {
+  const idx = ids.map(id => ROSTER.findIndex(e => e.id === id)).filter(i => i >= 0);
+  return "#c1=" + idx.map(i => i.toString(36)).join(".") + "&s=" + (score | 0);
+}
+function decodeChallenge(hash) {
+  const m = /c1=([0-9a-z.]+)&s=(\d+)/.exec(hash || ""); if (!m) return null;
+  const ids = m[1].split(".").map(q => ROSTER[parseInt(q, 36)]?.id).filter(Boolean);
+  return ids.length >= 3 ? { ids: ids.slice(0, 20), beat: +m[2] } : null;
+}
+
+// ---------- signal filtering, voting, passive baseline, practice ----------
+// One Euro filter: smooth when you're still, instant when you move. st = {x, dx} is updated in place.
+function oneEuro(st, x, dt, minC = 1.2, beta = 8, dC = 1) {
+  const a = c => 1 / (1 + (1 / (2 * Math.PI * c)) / dt);
+  if (st.x === undefined) { st.x = x; st.dx = 0; return x; }
+  st.dx += a(dC) * ((x - st.x) / dt - st.dx);
+  st.x += a(minC + beta * Math.abs(st.dx)) * (x - st.x);
+  return st.x;
+}
+
+// Majority vote over a short window. Stops one noisy frame from changing the answer.
+function makeVoter(win = 350, share = 0.55, stick = 250) {
+  const hist = []; let last = null, lastT = -1e9;
+  return {
+    push(id, now) {
+      hist.push({ t: now, id });
+      while (hist.length && now - hist[0].t > win) hist.shift();
+      const c = {}; for (const e of hist) if (e.id) c[e.id] = (c[e.id] || 0) + 1;
+      let best = null, bv = 0; for (const k in c) if (c[k] > bv) { bv = c[k]; best = k; }
+      if (best && hist.length >= 3 && bv / hist.length >= share) { last = best; lastT = now; return best; }
+      if (last && now - lastT < stick) return last;
+      return null;
+    },
+    reset() { hist.length = 0; last = null; },
+  };
+}
+
+// Which emoji should be on screen? Average every emoji's score over the last ~400 ms (recent frames count more).
+// A close call stays a close call instead of flickering, and a real change still wins within a few frames.
+function blendFace(hist, curId, now, win = 400, margin = 0.06) {
+  const tot = {}; let ws = 0;
+  for (const h of hist) {
+    const age = now - h.t; if (age > win) continue;
+    const w = 1 - 0.6 * age / win; ws += w;
+    for (const k in h.all) tot[k] = (tot[k] || 0) + w * h.all[k];
+  }
+  if (!ws) return curId;
+  let best = null, bv = -1;
+  for (const k in tot) { const v = tot[k] / ws; if (v > bv) { bv = v; best = k; } }
+  if (bv < 0.5) best = "neutral-face";
+  if (!curId || best === curId) return best;
+  const curV = (tot[curId] || 0) / ws;
+  return bv > curV + margin ? best : curId;
+}
+
+// Quietly learn what this face looks like at rest, so a resting smile or low brows don't count as expressions
+const PASSIVE_KEYS = ["mouthSmileLeft", "mouthSmileRight", "mouthFrownLeft", "mouthFrownRight", "browDownLeft", "browDownRight", "browInnerUp",
+  "browOuterUpLeft", "browOuterUpRight", "mouthPressLeft", "mouthPressRight", "mouthStretchLeft", "mouthStretchRight", "noseSneerLeft", "noseSneerRight",
+  "cheekSquintLeft", "cheekSquintRight", "eyeSquintLeft", "eyeSquintRight", "mouthUpperUpLeft", "mouthUpperUpRight"];
+function passiveUpdate(pb, sm, oe) {
+  const g = k => sm[k] || 0, avg = (a, b) => (g(a) + g(b)) / 2;
+  const act = Math.max(avg("mouthSmileLeft", "mouthSmileRight"), avg("mouthFrownLeft", "mouthFrownRight"), g("jawOpen") * 1.5, g("browInnerUp"),
+    avg("browDownLeft", "browDownRight"), g("mouthPucker"), g("tongueOut"), avg("mouthStretchLeft", "mouthStretchRight"), avg("noseSneerLeft", "noseSneerRight"), g("cheekPuff"));
+  let speed = 0; for (const k of ["mouthSmileLeft", "jawOpen", "browInnerUp", "mouthFrownLeft"]) speed = Math.max(speed, Math.abs(oe[k]?.dx || 0));
+  if (act >= 0.28 || speed >= 0.35) return false;          // something is happening: don't learn from it
+  for (const k of PASSIVE_KEYS) { const t = Math.min(g(k), 0.15), cur = pb[k] ?? t; pb[k] = cur + (t - cur) * 0.006; }
+  return true;
+}
+
+// Practice meter: how close is the face to an emoji's rule, and what to change
+function ruleGaps(e, f) {
+  const gaps = []; let sum = 0, min = 1, n = 0;
+  for (const k in e.r) {
+    const [lo, hi] = e.r[k], v = f[k] || 0, m = mem(v, [lo, hi]);
+    sum += m; if (m < min) min = m; n++;
+    if (v < lo) gaps.push({ key: k, dir: "more", miss: lo - v });
+    else if (v > hi) gaps.push({ key: k, dir: "less", miss: v - hi });
+  }
+  gaps.sort((a, b) => b.miss - a.miss);
+  return { pct: n ? clamp01(0.5 * sum / n + 0.5 * min) : 0, gaps };
+}
+function describeHand(hd) {
+  const s = fingerStates(hd), m = b => (b ? "✓" : "✗");
+  return `thumb ${m(s.thumb)}  index ${m(s.idx)}  middle ${m(s.mid)}  ring ${m(s.ring)}  pinky ${m(s.pink)}`;
+}
+/* ==PURE END== */
+
+/* ============================================================
+   APP
+   ============================================================ */
+const $ = id => document.getElementById(id);
+const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const FACE_MODEL = "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
+const HAND_MODEL = "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task";
+const MP = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14";
+
+const nameEl = $("name"), subEl = $("sub"), startBtn = $("startBtn"), video = $("video");
+const toastEl = $("toast"), dexEl = $("dex"), debugEl = $("debug");
+let THREE = null;
+
+// ---------- progress (unlocked emojis) ----------
+const STORE = "emojiMirror3d.unlocked";
+let unlocked = new Set();
+try { unlocked = new Set(JSON.parse(localStorage.getItem(STORE) || "[]")); } catch (e) {}
+const save = () => { try { localStorage.setItem(STORE, JSON.stringify([...unlocked])); } catch (e) {} };
+const CAL_STORE = "emojiMirror3d.cal", CUSTOM_STORE = "emojiMirror3d.custom";
+let cal = null, custom = [];   // cal: this person's tuning; custom: faces they taught [{id, vec}]
+try { cal = JSON.parse(localStorage.getItem(CAL_STORE) || "null"); } catch (e) {}
+try { custom = Object.entries(JSON.parse(localStorage.getItem(CUSTOM_STORE) || "{}")).filter(([id]) => BY_ID[id]).map(([id, v]) => ({ id, vecs: Array.isArray(v[0]) ? v : [v] })); } catch (e) {}
+const saveCustom = () => { try { localStorage.setItem(CUSTOM_STORE, JSON.stringify(Object.fromEntries(custom.map(c => [c.id, c.vecs])))); } catch (e) {} };
+const liveTotal = ROSTER.filter(e => e.kind !== "tap").length;
+const liveCount = () => [...unlocked].filter(id => BY_ID[id] && BY_ID[id].kind !== "tap").length;
+function updateCount() {
+  $("dexBtn").innerHTML = `📚<span class="lbl"> Collection</span> ${liveCount()} / ${liveTotal}`;
+  $("dexTitle").textContent = `Collection: ${liveCount()} of ${liveTotal} unlocked`;
+}
+
+let toastTimer = 0;
+function toast(msg) {
+  toastEl.textContent = msg; toastEl.classList.add("show");
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => toastEl.classList.remove("show"), 2200);
+}
+
+// ---------- 3D scene ----------
+const canvas = $("gl");
+let renderer, scene, camera, loader, maxAniso = 1;
+const texCache = new Map();   // id -> Promise<{tex,color}>
+const slots = [];
+const bursts = [];
+const MAX_SLOTS = 4;
+let dotTex;
+
+function glyphTexture(ch) {
+  const c = document.createElement("canvas"); c.width = c.height = 256;
+  const x = c.getContext("2d");
+  x.font = '200px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+  x.textAlign = "center"; x.textBaseline = "middle"; x.fillText(ch, 128, 140);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+function averageColor(img) {
+  try {
+    const c = document.createElement("canvas"); c.width = c.height = 24;
+    const x = c.getContext("2d"); x.drawImage(img, 0, 0, 24, 24);
+    const d = x.getImageData(0, 0, 24, 24).data; let r = 0, g = 0, b = 0, n = 0;
+    for (let i = 0; i < d.length; i += 4) if (d[i + 3] > 200) { r += d[i]; g += d[i + 1]; b += d[i + 2]; n++; }
+    if (n) return [r / n, g / n, b / n];
+  } catch (e) {}
+  return [255, 200, 70];
+}
+function getTexture(id) {
+  if (texCache.has(id)) return texCache.get(id);
+  const e = BY_ID[id];
+  const p = new Promise(resolve => {
+    loader.load(urlOf(e), tex => {
+      tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = maxAniso;
+      resolve({ tex, color: averageColor(tex.image) });
+    }, undefined, () => resolve({ tex: glyphTexture(e.ch), color: [255, 200, 70] }));
+  });
+  texCache.set(id, p); return p;
+}
+
+function makeSlot() {
+  const group = new THREE.Group();
+  const tiltG = new THREE.Group(); group.add(tiltG);
+  const geo = new THREE.PlaneGeometry(2.6, 2.6);
+  const layers = [], N = 16, depth = 0.34;
+  for (let i = 0; i < N; i++) {
+    const t = i / (N - 1);
+    const m = new THREE.MeshBasicMaterial({ alphaTest: 0.5, side: THREE.DoubleSide });
+    m.color.setScalar(i === 0 ? 1 : 0.8 - 0.4 * t);
+    const mesh = new THREE.Mesh(geo, m);
+    mesh.position.z = depth / 2 - t * depth;
+    tiltG.add(mesh); layers.push(m);
+  }
+  // soft ground shadow
+  const sc = document.createElement("canvas"); sc.width = sc.height = 128;
+  const sx = sc.getContext("2d"), gr = sx.createRadialGradient(64, 64, 4, 64, 64, 62);
+  gr.addColorStop(0, "rgba(0,0,0,.5)"); gr.addColorStop(1, "rgba(0,0,0,0)");
+  sx.fillStyle = gr; sx.fillRect(0, 0, 128, 128);
+  const shadow = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.5),
+    new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(sc), transparent: true, depthWrite: false }));
+  shadow.position.y = -1.85; group.add(shadow);
+  scene.add(group);
+  return {
+    group, tiltG, layers, shadow,
+    shown: null, want: null, cand: null, candSince: 0,
+    s: 0.01, v: 0, targetS: 1, x: 0, tx: 0,
+    rot: { x: 0, y: 0, z: 0 }, trot: { x: 0, y: 0, z: 0 }, hasPose: false,
+    sm: {}, oe: {}, pb: {}, pbN: 0, fh: [], lead: 0, leadId: null, zoneVoter: makeVoter(), lastT: 0, rollS: undefined,
+    closedSince: 0, yawHist: [], jawHist: [], shakeUntil: 0, chatterUntil: 0,
+    faceSize: 0, active: false, color: [255, 200, 70], phase: Math.random() * 6,
+  };
+}
+
+function burst(slot, big) {
+  if (reduceMotion || !scene) return;
+  const n = big ? 90 : 34, p = new Float32Array(n * 3), v = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2, sp = (big ? 2.2 : 1.4) * (0.4 + Math.random());
+    p[i * 3] = slot.group.position.x; p[i * 3 + 1] = slot.group.position.y; p[i * 3 + 2] = 0.4;
+    v[i * 3] = Math.cos(a) * sp; v[i * 3 + 1] = Math.sin(a) * sp + 0.8; v[i * 3 + 2] = (Math.random() - 0.3) * 1.2;
+  }
+  const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.BufferAttribute(p, 3));
+  const m = new THREE.PointsMaterial({ size: big ? 0.2 : 0.14, map: dotTex, color: 0xffffff, transparent: true, depthWrite: false });
+  const pts = new THREE.Points(g, m); pts.userData = { v, life: 0, max: big ? 1.5 : 0.9 };
+  scene.add(pts); bursts.push(pts);
+}
+
+function setBackground(rgb) {
+  const [r, g, b] = rgb;
+  const mix = (c, t, k) => Math.round(c + (t - c) * k);
+  const c1 = `rgb(${mix(r, 255, .22)}, ${mix(g, 255, .22)}, ${mix(b, 255, .22)})`;
+  const c2 = `rgb(${mix(r, 0, .5)}, ${mix(g, 0, .5)}, ${mix(b, 0, .5)})`;
+  document.documentElement.style.setProperty("--c1", c1);
+  document.documentElement.style.setProperty("--c2", c2);
+}
+
+// ---------- caption + pin ----------
+let pinned = null;   // {id, until}
+let primary = null;
+function updateCaption() {
+  if (!running && !pinned) return;
+  const slot = primary;
+  const now = performance.now();
+  if (pinned && now < pinned.until) {
+    const e = BY_ID[pinned.id];
+    nameEl.textContent = `${e.ch} ${e.folder}`;
+    subEl.textContent = e.hint ? `Try it: ${e.hint}` : "A prop emoji. No camera trick for this one.";
+    return;
+  }
+  if (!slot || !slot.active) { nameEl.textContent = "Looking for your face"; subEl.textContent = "Face the camera in good light."; return; }
+  const e = BY_ID[slot.shown];
+  if (!e) return;
+  nameEl.textContent = `${e.ch} ${e.folder}`;
+  const n = slots.filter(s => s.active).length;
+  subEl.textContent = n > 1 ? `${n} faces spotted` : "";
+}
+
+function setShown(slot, id, opts = {}) {
+  if (slot.want === id) return;
+  slot.want = id;
+  getTexture(id).then(({ tex, color }) => {
+    if (slot.want !== id) return;
+    slot.layers.forEach(m => { m.map = tex; m.needsUpdate = true; });
+    slot.shown = id; slot.color = color; slot.s = 0.55; slot.v = 0;
+    if (slot === primary || !primary) setBackground(color);
+    const fresh = !unlocked.has(id) && !opts.silent && BY_ID[id].kind !== "tap";
+    burst(slot, fresh);
+    if (fresh) { unlocked.add(id); save(); updateCount(); toast(`Unlocked ${BY_ID[id].ch} ${BY_ID[id].folder}`); markTile(id); }
+    updateCaption();
+  });
+}
+
+// ---------- layout / resize ----------
+function resize() {
+  const w = innerWidth, h = innerHeight;
+  renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+}
+const CAM_Z = 6.4;
+function visibleWidth() { return 2 * CAM_Z * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * camera.aspect; }
+function layoutSlots(activeSlots) {
+  const n = Math.max(1, activeSlots.length);
+  const sc = [1, 0.8, 0.62, 0.5][n - 1], unit = 2.9;
+  const fit = Math.min(1, (visibleWidth() * 0.92) / (n * unit * sc));
+  activeSlots.forEach((s, i) => { s.tx = (i - (n - 1) / 2) * unit * sc * fit; s.targetS = sc * fit; });
+}
+
+// ---------- tracking ----------
+let faceLm = null, handLm = null, stream = null, running = false;
+let lastVideoTime = -1, frameN = 0, lastFaceSeen = 0, handRes = null, handSeen = 0, handErr = "", handErrCount = 0;
+let lastRef = null, lastF = null, lastRefT = 0, lastGesture = null, lastGestureT = 0;
+let handMs = 10, handEvery = 1, lastHandsPx = [];
+
+let signStable = null, waveHist = [], waveUntil = 0;
+const signVoter = makeVoter(350, 0.55, 250);
+function updateSign(hands, now) {
+  let id = null;
+  if (hands.length >= 2) id = twoHandShape(hands[0], hands[1]);
+  if (!id) for (const hd of hands) { id = handShape(hd); if (id) break; }
+  if (id === "raised-hand" && hands.length) {            // an open hand moving side to side = wave
+    const hd = hands[0], c = centerOf(hd), size = dist(hd[0], hd[9]) || 1;
+    waveHist.push({ t: now, x: c.x }); while (waveHist.length && now - waveHist[0].t > 1000) waveHist.shift();
+    let mn = 1e9, mx = -1e9, ch = 0, dir = 0, ext = waveHist[0].x;
+    for (const q of waveHist) {
+      mn = Math.min(mn, q.x); mx = Math.max(mx, q.x);
+      if (dir >= 0 && q.x < ext - size * 0.25) { if (dir === 1) ch++; dir = -1; ext = q.x; }
+      else if (dir <= 0 && q.x > ext + size * 0.25) { if (dir === -1) ch++; dir = 1; ext = q.x; }
+      else if ((dir === 1 && q.x > ext) || (dir === -1 && q.x < ext) || dir === 0) ext = q.x;
+    }
+    if (mx - mn > size * 0.9 && ch >= 2) waveUntil = now + 500;
+    if (now < waveUntil) id = "waving-hand";
+  } else if (!hands.length) { waveHist.length = 0; }
+  signStable = signVoter.push(id, now);      // majority over the last ~350 ms, held briefly after it drops out
+  return signStable;
+}
+
+function procFaces(res, now) {
+  const vw = video.videoWidth, vh = video.videoHeight;
+  const faces = (res.faceLandmarks || []).map((lm, i) => ({
+    lm, i,
+    xm: 1 - lm[1].x,
+    size: Math.hypot((lm[454].x - lm[234].x) * vw, (lm[454].y - lm[234].y) * vh),
+  })).sort((a, b) => a.xm - b.xm).slice(0, MAX_SLOTS);
+
+  if (faces.length) lastFaceSeen = now;
+  while (slots.length < Math.max(1, faces.length)) slots.push(makeSlot());
+
+  const handsPx = (handRes && now - handSeen < 400 && handRes.landmarks)
+    ? handRes.landmarks.map((hd, i) => { const px = hd.map(p => ({ x: p.x * vw, y: p.y * vh })); if (handRes.worldLandmarks?.[i]) px.w = handRes.worldLandmarks[i]; return px; }) : [];
+  lastHandsPx = handsPx;
+  const signNow = updateSign(handsPx, now);          // 👍 ✌️ 👋 ... (stable for a moment)
+  let bigIdx = 0; faces.forEach((fc, i) => { if (fc.size > faces[bigIdx].size) bigIdx = i; });
+
+  slots.forEach(s => { s.active = false; });
+  faces.forEach((fc, idx) => {
+    const slot = slots[idx]; slot.active = true; slot.faceSize = fc.size;
+    const cats = res.faceBlendshapes[fc.i].categories;
+    // adaptive smoothing (calm when still, instant when you move), then tune to this person's face
+    const dtF = Math.min(0.1, Math.max(1 / 120, (now - (slot.lastT || now - 33)) / 1000)); slot.lastT = now;
+    for (const c of cats) { const st = slot.oe[c.categoryName] || (slot.oe[c.categoryName] = { x: undefined, dx: 0 }); slot.sm[c.categoryName] = oneEuro(st, c.score, dtF); }
+    if (!cal && passiveUpdate(slot.pb, slot.sm, slot.oe)) slot.pbN++;
+    const smc = calibrate(slot.sm, cal || (slot.pbN >= 90 ? { base: slot.pb, gain: {} } : null));
+
+    // head pose
+    let pose = null;
+    const mat = res.facialTransformationMatrixes?.[fc.i];
+    if (mat) {
+      const m = new THREE.Matrix4().fromArray(mat.data);
+      const p = new THREE.Vector3(), q = new THREE.Quaternion(), sc = new THREE.Vector3();
+      m.decompose(p, q, sc);
+      const e = new THREE.Euler().setFromQuaternion(q, "YXZ");
+      slot.rollS = slot.rollS === undefined ? e.z : slot.rollS * 0.6 + e.z * 0.4;
+      pose = { pitch: e.x, yaw: e.y, roll: slot.rollS };
+      slot.hasPose = true;
+      slot.trot.x = THREE.MathUtils.clamp(pose.pitch * 0.9, -0.6, 0.6);
+      slot.trot.y = THREE.MathUtils.clamp(-pose.yaw * 1.1, -0.95, 0.95);
+      slot.trot.z = THREE.MathUtils.clamp(-pose.roll, -0.9, 0.9);
+    }
+
+    // timers: eyes closed, head shake, teeth chatter
+    const blinkAvg = ((smc.eyeBlinkLeft || 0) + (smc.eyeBlinkRight || 0)) / 2;
+    if (blinkAvg > 0.75) { if (!slot.closedSince) slot.closedSince = now; } else slot.closedSince = 0;
+    const closedMs = slot.closedSince ? now - slot.closedSince : 0;
+
+    if (pose) {
+      slot.yawHist.push({ t: now, v: pose.yaw * 180 / Math.PI });
+      while (slot.yawHist.length && now - slot.yawHist[0].t > 900) slot.yawHist.shift();
+      let min = 1e9, max = -1e9, changes = 0, dir = 0, ext = slot.yawHist[0]?.v ?? 0;
+      for (const h of slot.yawHist) {
+        min = Math.min(min, h.v); max = Math.max(max, h.v);
+        if (dir >= 0 && h.v < ext - 6) { if (dir === 1) changes++; dir = -1; ext = h.v; }
+        else if (dir <= 0 && h.v > ext + 6) { if (dir === -1) changes++; dir = 1; ext = h.v; }
+        else if ((dir === 1 && h.v > ext) || (dir === -1 && h.v < ext) || dir === 0) ext = h.v;
+      }
+      if (max - min > 18 && changes >= 2) slot.shakeUntil = now + 600;
+    }
+    const jaw = smc.jawOpen || 0;
+    slot.jawHist.push({ t: now, v: jaw });
+    while (slot.jawHist.length && now - slot.jawHist[0].t > 1000) slot.jawHist.shift();
+    {
+      let rev = 0, dir = 0, ext = slot.jawHist[0]?.v ?? 0, mn = 1, mx = 0;
+      for (const h of slot.jawHist) {
+        mn = Math.min(mn, h.v); mx = Math.max(mx, h.v);
+        if (dir >= 0 && h.v < ext - 0.05) { if (dir === 1) rev++; dir = -1; ext = h.v; }
+        else if (dir <= 0 && h.v > ext + 0.05) { if (dir === -1) rev++; dir = 1; ext = h.v; }
+        else if ((dir === 1 && h.v > ext) || (dir === -1 && h.v < ext) || dir === 0) ext = h.v;
+      }
+      if (rev >= 5 && mx < 0.4 && mx - mn > 0.06) slot.chatterUntil = now + 500;
+    }
+
+    const f = feats(smc, pose, { closedMs });
+
+    // hands: judge any hand near this face (reference points in pixels), then vote over the last few frames
+    let handId = null;
+    {
+      const lm = fc.lm, P = i => ({ x: lm[i].x * vw, y: lm[i].y * vh });
+      const ref = {
+        mouth: { x: (P(13).x + P(14).x) / 2, y: (P(13).y + P(14).y) / 2 },
+        chin: P(152), fore: P(10), eyes: P(168), fw: fc.size,
+        eyeL: lm[468] ? P(468) : P(33), eyeR: lm[473] ? P(473) : P(263),
+      };
+      lastRef = ref; lastF = f; lastRefT = now;
+      let g = null; const dbg = {};
+      for (const hd of handsPx) { g = handGesture(hd, ref, f, dbg); if (g) break; }
+      slot.handDbg = dbg;
+      const stable = slot.zoneVoter.push(g, now);
+      if (stable) { handId = stable; lastGesture = stable; lastGestureT = now; }
+    }
+    // a hand sign anywhere in view (👍 ✌️ 👋 ...) applies to the biggest face, unless a hand is already on the face
+    if (!handId && signNow && idx === bigIdx) { handId = signNow; lastGesture = signNow; lastGestureT = now; }
+
+    // the face's own best guess every frame, then a weighted vote so one noisy frame can't flip the emoji
+    const base = classify(f, slot.want, { custom });
+    slot.debug = { f, top: base.top };
+    slot.fh.push({ t: now, all: base.all });
+    while (slot.fh.length && now - slot.fh[0].t > 500) slot.fh.shift();
+    const instantId = handId || (now < slot.shakeUntil ? "shaking-face" : null) || (now < slot.chatterUntil ? "cold-face" : null);
+    let nextId = null;
+    if (instantId) { slot.lead = 0; nextId = instantId; }
+    else {
+      const cand = blendFace(slot.fh, slot.want, now);
+      if (!slot.want || cand === slot.want) { slot.lead = 0; nextId = cand; }
+      else { slot.lead = cand === slot.leadId ? slot.lead + 1 : 1; slot.leadId = cand; nextId = slot.lead >= 2 ? cand : null; }   // must lead for 2 frames
+    }
+    if (nextId && nextId !== slot.want) setShown(slot, nextId);
+  });
+
+  // no face found. A hand over the face often makes tracking drop, so judge the hand against where the face just was
+  if (!faces.length) {
+    const s0 = slots[0];
+    let g = null;
+    if (handsPx.length && lastRef && now - lastRefT < 1500) {
+      const dbg = {};
+      for (const hd of handsPx) { g = handGesture(hd, lastRef, lastF || {}, dbg); if (g) break; }
+      s0.handDbg = dbg;
+    }
+    const ghost = s0.zoneVoter.push(g, now) || signNow;
+    if (ghost) {
+      s0.active = true; s0.hasPose = false; lastGesture = ghost; lastGestureT = now;
+      if (s0.want !== ghost) setShown(s0, ghost);
+    } else if (now - lastFaceSeen > 700) {
+      s0.active = false; s0.hasPose = false;
+      if (s0.want !== "dotted-line-face") setShown(s0, "dotted-line-face", { silent: true });
+    }
+  }
+
+  const act = slots.filter(s => s.active);
+  primary = act.length ? act.reduce((a, b) => (b.faceSize > a.faceSize ? b : a)) : slots[0];
+  layoutSlots(act.length ? act : [slots[0]]);
+  slots.forEach(s => { s.group.visible = s.active || s === slots[0]; });
+  if (primary?.color) setBackground(primary.color);
+  updateCaption();
+}
+
+// ---------- hand overlay on the preview ----------
+const handCv = $("handCv"), hctx = handCv.getContext("2d");
+function drawHands() {
+  const vw = video.videoWidth, vh = video.videoHeight; if (!vw) return;
+  if (handCv.width !== vw) { handCv.width = vw; handCv.height = vh; }
+  hctx.clearRect(0, 0, vw, vh);
+  if (!handRes || !handRes.landmarks) return;
+  hctx.fillStyle = "#7cffb2"; hctx.strokeStyle = "#ffffff"; hctx.lineWidth = 2;
+  for (const hd of handRes.landmarks) for (const p of hd) { hctx.beginPath(); hctx.arc(p.x * vw, p.y * vh, 4, 0, 6.3); hctx.fill(); hctx.stroke(); }
+}
+let badgeTxt = "";
+function updateBadge(now) {
+  let t;
+  if (!handLm) t = "✋ hands off";
+  else if (lastGesture && now - lastGestureT < 500) t = `✋ ${BY_ID[lastGesture].ch} ${BY_ID[lastGesture].folder}`;
+  else if (now - handSeen < 400) t = "✋ hand seen";
+  else t = "✋ show a hand";
+  if (t !== badgeTxt) { badgeTxt = t; $("handBadge").textContent = t; $("handBadge").title = handLm ? "" : (handErr || "Hand tracking did not load"); }
+}
+
+// ---------- main loop ----------
+let last = performance.now();
+function tick(now) {
+  requestAnimationFrame(tick);
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+
+  if (running && video.readyState >= 2 && video.currentTime !== lastVideoTime && faceLm) {
+    lastVideoTime = video.currentTime; frameN++;
+    try {
+      if (handLm && frameN % handEvery === 0) {
+        try {
+          const t0 = performance.now(); handRes = handLm.detectForVideo(video, t0);
+          handMs = handMs * 0.8 + (performance.now() - t0) * 0.2; handEvery = handMs < 14 ? 1 : 2;   // every frame if the machine can keep up
+          if (handRes.landmarks?.length) handSeen = now; drawHands();
+        }
+        catch (e) { console.warn("hand error", e); if (++handErrCount > 5) { handLm = null; handErr = "runtime error"; toast("Hand tracking stopped after an error"); } }
+      }
+      const res = faceLm.detectForVideo(video, performance.now());
+      procFaces(res, now);
+    } catch (e) { console.error(e); }
+  }
+
+  gameTick(now, dt);
+  taskTick(now);
+  practiceTick(now);
+  if (running) updateBadge(now);
+
+  const t = now / 1000;
+  slots.forEach(s => {
+    // spring toward target scale
+    const target = s.shown ? s.targetS : 0.01;
+    const a = (target - s.s) * 180 - s.v * 11; s.v += a * dt; s.s += s.v * dt;
+    s.x += (s.tx - s.x) * Math.min(1, dt * 8);
+    s.group.position.x = s.x; s.group.position.y = 0.3 + (reduceMotion ? 0 : Math.sin(t * 1.6 + s.phase) * 0.05);
+    s.group.scale.setScalar(Math.max(0.001, s.s));
+    if (s.hasPose && running) {
+      s.rot.x += (s.trot.x - s.rot.x) * 0.25; s.rot.y += (s.trot.y - s.rot.y) * 0.25; s.rot.z += (s.trot.z - s.rot.z) * 0.25;
+    } else {
+      const sway = reduceMotion ? 0 : 1;
+      s.rot.x += (Math.sin(t * 0.7 + s.phase) * 0.1 * sway - s.rot.x) * 0.05;
+      s.rot.y += (Math.sin(t * 0.9 + s.phase) * 0.55 * sway - s.rot.y) * 0.05;
+      s.rot.z += (0 - s.rot.z) * 0.05;
+    }
+    s.tiltG.rotation.set(s.rot.x, s.rot.y, s.rot.z);
+    s.shadow.material.opacity = 0.6;
+  });
+
+  for (let i = bursts.length - 1; i >= 0; i--) {
+    const b = bursts[i], u = b.userData; u.life += dt;
+    const p = b.geometry.attributes.position.array;
+    for (let k = 0; k < p.length; k += 3) { p[k] += u.v[k] * dt; p[k + 1] += u.v[k + 1] * dt; p[k + 2] += u.v[k + 2] * dt; u.v[k + 1] -= 1.8 * dt; }
+    b.geometry.attributes.position.needsUpdate = true;
+    b.material.opacity = Math.max(0, 1 - u.life / u.max);
+    if (u.life >= u.max) { scene.remove(b); b.geometry.dispose(); b.material.dispose(); bursts.splice(i, 1); }
+  }
+
+  if (!debugEl.hidden && primary?.debug) {
+    const d = primary.debug, f = d.f;
+    debugEl.textContent = Object.entries(f).map(([k, v]) => `${k.padEnd(14)}${v.toFixed(2)}`).join("\n") +
+      "\n\n" + d.top.map(([id, s]) => `${id} ${s.toFixed(2)}`).join("\n") +
+      (primary.handDbg && Object.keys(primary.handDbg).length ? "\n\nhand (face widths)\n" + Object.entries(primary.handDbg).map(([k, v]) => `${k.padEnd(12)}${typeof v === "number" ? v.toFixed(2) : v}`).join("\n") : "");
+  }
+  renderer.render(scene, camera);
+}
+
+// ---------- start / stop ----------
+async function start() {
+  startBtn.disabled = true;
+  try {
+    nameEl.textContent = "Loading face tracking"; subEl.textContent = "This takes a few seconds the first time.";
+    const vision = await import(`${MP}/vision_bundle.mjs`);
+    const fileset = await vision.FilesetResolver.forVisionTasks(`${MP}/wasm`);
+    const mk = delegate => vision.FaceLandmarker.createFromOptions(fileset, {
+      baseOptions: { modelAssetPath: FACE_MODEL, delegate }, runningMode: "VIDEO", numFaces: MAX_SLOTS,
+      outputFaceBlendshapes: true, outputFacialTransformationMatrixes: true,
+    });
+    try { faceLm = await mk("GPU"); } catch (e) { faceLm = await mk("CPU"); }
+    try {
+      const mh = delegate => vision.HandLandmarker.createFromOptions(fileset, {
+        baseOptions: { modelAssetPath: HAND_MODEL, delegate }, runningMode: "VIDEO", numHands: 2,
+        minHandDetectionConfidence: 0.4, minHandPresenceConfidence: 0.4, minTrackingConfidence: 0.4,
+      });
+      try { handLm = await mh("CPU"); } catch (e) { console.warn("Hand CPU failed, trying GPU", e); handLm = await mh("GPU"); }
+    } catch (e) { console.warn("Hand tracking unavailable", e); handLm = null; handErr = String((e && e.message) || e); }
+
+    nameEl.textContent = "Waiting for camera access"; subEl.textContent = "Choose Allow when your browser asks.";
+    stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 960 }, height: { ideal: 720 }, facingMode: "user" }, audio: false });
+    video.srcObject = stream; await video.play();
+    $("cam").style.aspectRatio = `${video.videoWidth} / ${video.videoHeight}`;
+    $("cam").hidden = false; startBtn.hidden = true; running = true;
+    toast(handLm ? "Hand gestures are on" : "Hand gestures unavailable. Face emojis still work.");
+    slots[0].hasPose = false; setShown(slots[0], "dotted-line-face", { silent: true });
+    ["slightly-smiling-face", "grinning-face", "face-with-tears-of-joy", "face-with-open-mouth", "crying-face", "angry-face", "face-with-tongue", "winking-face", "sleeping-face"].forEach(getTexture);
+    updateCaption();
+  } catch (e) {
+    console.error(e);
+    startBtn.disabled = false; startBtn.hidden = false; startBtn.textContent = "Try again";
+    if (e && (e.name === "NotAllowedError" || e.name === "SecurityError")) {
+      nameEl.textContent = "Camera access is blocked"; subEl.textContent = "Allow the camera for this page in your browser's address bar. It needs https or localhost.";
+    } else if (e && e.name === "NotFoundError") {
+      nameEl.textContent = "No camera found"; subEl.textContent = "Connect a webcam and try again.";
+    } else {
+      nameEl.textContent = "Couldn't load face tracking"; subEl.textContent = "Check your internet connection (the models load from a CDN) and try again.";
+    }
+  }
+}
+function stop() {
+  if (game) quitGame();
+  if (task) cancelTask();
+  stopPractice();
+  running = false;
+  if (stream) stream.getTracks().forEach(t => t.stop());
+  stream = null; video.srcObject = null; $("cam").hidden = true;
+  startBtn.hidden = false; startBtn.disabled = false; startBtn.textContent = "Start camera";
+  slots.forEach((s, i) => { s.active = false; s.hasPose = false; });
+  primary = slots[0]; layoutSlots([slots[0]]); setShown(slots[0], "slightly-smiling-face", { silent: true });
+  nameEl.textContent = "Camera is off"; subEl.textContent = "Start it again whenever you like.";
+}
+
+// ---------- collection sheet ----------
+const tiles = {};
+function buildDex() {
+  const body = $("dexBody"); body.innerHTML = "";
+  GROUPS.forEach(g => {
+    const items = ROSTER.filter(e => e.group === g.id);
+    const sec = document.createElement("section"); sec.className = "group";
+    sec.innerHTML = `<h3>${g.title}</h3><p>${g.note}</p>`;
+    const grid = document.createElement("div"); grid.className = "grid";
+    items.forEach(e => {
+      const b = document.createElement("button"); b.type = "button"; b.className = "tile";
+      b.title = e.hint ? `${e.folder}: ${e.hint}` : e.folder; b.setAttribute("aria-label", e.folder);
+      const img = document.createElement("img"); img.loading = "lazy"; img.crossOrigin = "anonymous"; img.alt = ""; img.src = urlOf(e);
+      img.onerror = () => { img.remove(); const s = document.createElement("span"); s.className = "glyph"; s.textContent = e.ch; b.prepend(s); };
+      b.appendChild(img);
+      if (e.kind === "tap") { const t = document.createElement("span"); t.className = "tag"; t.textContent = "tap"; b.appendChild(t); }
+      b.addEventListener("click", () => openTileMenu(e.id));
+      tiles[e.id] = b; grid.appendChild(b);
+    });
+    sec.appendChild(grid); body.appendChild(sec);
+  });
+  ROSTER.forEach(e => markTile(e.id));
+}
+function markTile(id) {
+  const b = tiles[id]; if (!b) return;
+  const e = BY_ID[id];
+  b.classList.toggle("locked", e.kind !== "tap" && !unlocked.has(id));
+  b.classList.toggle("mine", custom.some(c => c.id === id));
+}
+function preview(id) {
+  const slot = slots[0];
+  const dur = running ? 4000 : 1e9;
+  pinned = { id, until: performance.now() + dur };
+  setShown(slot, id, { silent: true });
+  if (running) { setTimeout(() => { if (pinned && performance.now() >= pinned.until - 50) { pinned = null; slot.want = null; updateCaption(); } }, dur + 60); }
+  updateCaption();
+}
+
+// ---------- challenge game ----------
+const ROUNDS = 10, HOLD_MS = 300;
+const EASY = ["grinning-face", "slightly-smiling-face", "face-with-open-mouth", "face-with-tongue", "winking-face", "angry-face",
+  "crying-face", "kissing-face", "astonished-face", "smirking-face", "face-with-raised-eyebrow", "frowning-face", "face-with-rolling-eyes", "face-blowing-a-kiss"];
+const SLOW = new Set(["sleeping-face", "sleepy-face", "cold-face", "shaking-face"]);
+const BEST_KEY = "emojiMirror3d.best";
+let best = 0; try { best = +localStorage.getItem(BEST_KEY) || 0; } catch (e) {}
+let game = null, muted = false, audio = null, countTimer = 0, flashTimer = 0, wantGame = false;
+
+// small synthesized sound effects (no files needed)
+function ensureAudio() {
+  try { if (!audio) audio = new (window.AudioContext || window.webkitAudioContext)(); if (audio.state === "suspended") audio.resume(); } catch (e) {}
+}
+function tone(freq, dur = 0.12, type = "sine", vol = 0.12, delay = 0) {
+  if (!audio || muted) return;
+  const t = audio.currentTime + delay, o = audio.createOscillator(), g = audio.createGain();
+  o.type = type; o.frequency.setValueAtTime(freq, t);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g); g.connect(audio.destination); o.start(t); o.stop(t + dur + 0.03);
+}
+const sfx = {
+  count: () => tone(520, 0.15, "triangle", 0.12),
+  go: () => { tone(784, 0.1, "triangle"); tone(1047, 0.22, "triangle", 0.12, 0.1); },
+  tick: () => tone(880, 0.05, "square", 0.04),
+  win: () => [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.14, "triangle", 0.12, i * 0.07)),
+  miss: () => { tone(220, 0.25, "sawtooth", 0.07); tone(165, 0.35, "sawtooth", 0.07, 0.16); },
+  end: () => [392, 523, 659, 784, 1047].forEach((f, i) => tone(f, 0.18, "triangle", 0.12, i * 0.09)),
+};
+
+const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+function pickRounds() {
+  const easy = shuffle(EASY.filter(id => BY_ID[id]));
+  const first = easy.slice(0, 3);
+  const mid = shuffle(DETECT.map(e => e.id).filter(id => id !== "neutral-face" && !first.includes(id)));
+  const hard = shuffle(ROSTER.filter(e => e.kind === "move" || ((e.kind === "hand" || e.kind === "sign") && handLm)).map(e => e.id));
+  const out = [];
+  for (const id of [...first, ...mid.slice(0, 5), ...hard.slice(0, 2), ...mid.slice(5)]) { if (!out.includes(id)) out.push(id); if (out.length >= ROUNDS) break; }
+  return out;
+}
+
+function showCount(txt, hideAfter = 0) {
+  const el = $("count"); el.textContent = txt; el.hidden = false;
+  el.classList.remove("pop"); void el.offsetWidth; el.classList.add("pop");
+  clearTimeout(countTimer); if (hideAfter) countTimer = setTimeout(() => { el.hidden = true; }, hideAfter);
+}
+function flash(kind) {
+  const g = $("game"); g.classList.remove("win", "miss"); void g.offsetWidth; g.classList.add(kind);
+  clearTimeout(flashTimer); flashTimer = setTimeout(() => g.classList.remove("win", "miss"), 1000);
+}
+function scoreText() {
+  return game.players === 1 ? `${game.scores[0]} pts` : game.scores.map((s, i) => `P${i + 1} ${s}`).join("  ");
+}
+let lastStreakTxt = "";
+function setStreakText(txt) { if (txt !== lastStreakTxt) { lastStreakTxt = txt; $("gStreak").textContent = txt; } }
+
+function beginGame() {
+  ensureAudio(); stopPractice();
+  const players = Math.min(MAX_SLOTS, Math.max(1, slots.filter(s => s.active).length));
+  game = { state: "countdown", stateAt: performance.now(), ids: challenge ? challenge.ids.slice() : pickRounds(), challenge, i: 0, players, scores: Array(players).fill(0),
+    streaks: Array(players).fill(0), bestStreak: 0, log: [], target: null, timeMax: 10, timeLeft: 10, lastSec: -1, cd: -1, armedAt: 0, hintShown: false };
+  challenge = null; updatePlayLabel();
+  game.ids.forEach(getTexture);   // preload every target
+  pinned = null; dexEl.hidden = true; $("results").hidden = true;
+  document.body.classList.add("gameOn"); $("game").hidden = false; $("playBtn").hidden = true;
+  $("gRound").textContent = "Get ready"; $("gScore").textContent = scoreText();
+  $("gName").textContent = "Make the face you see"; $("gHint").textContent = players > 1 ? `${players} players: fastest face wins each round` : "Hold it for a moment to score.";
+  $("gImg").removeAttribute("src"); $("gFill").style.width = "100%"; $("gFill").classList.remove("low");
+  setStreakText("");
+}
+
+function startRound(now) {
+  const g = game, id = g.ids[g.i], e = BY_ID[id];
+  g.target = id; g.state = "round"; g.stateAt = now; g.hintShown = false; g.lastSec = -1;
+  g.timeMax = (g.i < 3 || e.kind !== "face" || SLOW.has(id)) ? 10 : 8; g.timeLeft = g.timeMax;
+  g.armedAt = now + 600;   // ignore matches left over from the previous round
+  slots.forEach(s => { s.matchSince = 0; });
+  $("gRound").textContent = `Round ${g.i + 1} / ${g.ids.length}` + (g.challenge ? ` · beat ${g.challenge.beat}` : "");
+  $("gImg").src = urlOf(e); $("gName").textContent = `${e.ch} ${e.folder}`; $("gHint").textContent = "Make this face!";
+  $("gFill").style.width = "100%"; $("gFill").classList.remove("low"); $("gScore").textContent = scoreText();
+}
+
+function endRound(now) { game.state = "between"; game.stateAt = now; $("gScore").textContent = scoreText(); }
+function roundWin(idx, now) {
+  const g = game, p = Math.min(idx, g.players - 1);
+  const pts = 100 + Math.round(Math.max(0, g.timeLeft) / g.timeMax * 100) + 25 * Math.min(g.streaks[p], 4);
+  g.scores[p] += pts; g.streaks.forEach((_, k) => { if (k !== p) g.streaks[k] = 0; });
+  g.streaks[p]++; g.bestStreak = Math.max(g.bestStreak, g.streaks[p]);
+  g.log.push({ id: g.target, ok: true, p, pts });
+  burst(slots[idx], true); sfx.win(); flash("win");
+  $("gHint").textContent = g.players > 1 ? `+${pts} for Player ${p + 1}!` : `+${pts}!`;
+  endRound(now);
+}
+function roundMiss(now, skipped) {
+  const g = game;
+  g.log.push({ id: g.target, ok: false }); g.streaks.fill(0);
+  sfx.miss(); flash("miss"); $("gHint").textContent = skipped ? "Skipped" : "Time's up!";
+  endRound(now);
+}
+
+function finishGame() {
+  const g = game; if (!g) return;
+  g.state = "over"; $("game").hidden = true; $("count").hidden = true;
+  document.body.classList.remove("gameOn"); $("playBtn").hidden = false;
+  const top = Math.max(...g.scores), isBest = g.players === 1 && top > best;
+  if (isBest) { best = top; try { localStorage.setItem(BEST_KEY, String(best)); } catch (e) {} }
+  const hits = g.log.filter(r => r.ok).length;
+  let head;
+  if (g.players === 1) {
+    head = `<h2>Game over</h2><div class="rbig">${top}</div><div class="rline">${hits} of ${g.log.length} matched &middot; best streak ${g.bestStreak}</div>` +
+      (isBest ? `<div class="rbadge">New high score!</div>` : `<div class="rline">High score ${best}</div>`) +
+      (g.challenge ? `<div class="rline">${top >= g.challenge.beat ? "You beat the target of " + g.challenge.beat + "!" : (g.challenge.beat - top) + " short of the " + g.challenge.beat + " to beat"}</div>` : "");
+  } else {
+    const winners = g.scores.map((s, i) => [s, i]).filter(([s]) => s === top).map(([, i]) => `Player ${i + 1}`);
+    head = `<h2>Game over</h2><div class="rbig">${winners.length > 1 ? "Tie!" : winners[0] + " wins!"}</div>` +
+      `<div class="rline">${g.scores.map((s, i) => `Player ${i + 1}: ${s}`).join(" &middot; ")}</div>`;
+  }
+  const items = g.log.map(r => {
+    const e = BY_ID[r.id];
+    return `<div class="ritem ${r.ok ? "ok" : "bad"}"><span class="mark">${r.ok ? "✓" : "✗"}</span><img src="${urlOf(e)}" alt="" crossorigin="anonymous">${r.ok ? "+" + r.pts : "missed"}</div>`;
+  }).join("");
+  $("rbox").innerHTML = head + `<div class="rlist">${items}</div><div class="rbtns"><button id="rAgain" type="button">Play again</button><button id="rCard" type="button">Share score card</button>${g.players === 1 ? '<button id="rChal" type="button">Challenge a friend</button>' : ""}<button class="ghost" id="rClose" type="button">Close</button></div>`;
+  $("results").hidden = false; sfx.end(); toast(`Matched ${hits} of ${g.log.length}`);
+  $("rAgain").onclick = () => { $("results").hidden = true; beginGame(); };
+  $("rClose").onclick = () => { $("results").hidden = true; };
+  $("rCard").onclick = async () => { toast("Making your card…"); const b = await makeScoreCard(g); if (b) openShare(b, "emoji-challenge.png", `I scored ${top} on the Emoji Challenge!`); };
+  if ($("rChal")) $("rChal").onclick = () => shareChallenge(g.ids, top);
+  game = null;
+}
+function quitGame() {
+  if (!game) return;
+  if (game.log.length) { finishGame(); return; }
+  game = null; $("game").hidden = true; $("count").hidden = true;
+  document.body.classList.remove("gameOn"); $("playBtn").hidden = false;
+}
+
+function gameTick(now, dt) {
+  if (!game) return;
+  const g = game, t = now - g.stateAt;
+  if (g.state === "countdown") {
+    const n = 3 - Math.floor(t / 700);
+    if (n > 0) { if (g.cd !== n) { g.cd = n; showCount(String(n)); sfx.count(); } }
+    else { showCount("Go!", 650); sfx.go(); startRound(now); }
+  } else if (g.state === "round") {
+    const anyFace = slots.some(s => s.active);
+    if (anyFace) g.timeLeft -= dt;                       // clock only runs while a face is on camera
+    setStreakText(!anyFace ? "Show your face to start the clock" : (g.streaks.some(s => s > 1) ? `🔥 ${Math.max(...g.streaks)} in a row` : ""));
+    $("gFill").style.width = Math.max(0, g.timeLeft / g.timeMax * 100) + "%";
+    $("gFill").classList.toggle("low", g.timeLeft < 3);
+    if (!g.hintShown && g.timeMax - g.timeLeft > 3.2) { g.hintShown = true; $("gHint").textContent = "Hint: " + (BY_ID[g.target].hint || ""); }
+    const sec = Math.ceil(g.timeLeft);
+    if (sec <= 3 && sec > 0 && sec !== g.lastSec) { g.lastSec = sec; sfx.tick(); }
+    let winner = -1;
+    slots.forEach((s, idx) => {
+      if (!s.active) return;
+      if (now > g.armedAt && s.shown === g.target && s.want === g.target) {
+        if (!s.matchSince) s.matchSince = now;
+        else if (now - s.matchSince >= HOLD_MS && winner < 0) winner = idx;
+      } else s.matchSince = 0;
+    });
+    if (winner >= 0) roundWin(winner, now);
+    else if (g.timeLeft <= 0) roundMiss(now, false);
+  } else if (g.state === "between" && t > 1300) {
+    g.i++;
+    if (g.i >= g.ids.length) finishGame(); else startRound(now);
+  }
+}
+
+async function playClicked() {
+  ensureAudio();
+  if (!running) { wantGame = true; await start(); wantGame = false; if (!running) return; }
+  beginGame();
+}
+
+// ---------- tune to your face + teach it new faces ----------
+let task = null;
+const TUNE_STEPS = [
+  { title: "Relax your face", sub: "Neutral, like you're reading", id: "neutral-face" },
+  { title: "Smile as big as you can", sub: "Show those teeth", id: "beaming-face-with-smiling-eyes" },
+  { title: "Open your mouth wide", sub: "Like a big yawn", id: "face-with-open-mouth" },
+  { title: "Raise your eyebrows high", sub: "Look surprised", id: "astonished-face" },
+  { title: "Scowl", sub: "Brows down, scrunch your nose", id: "angry-face" },
+  { title: "Pucker up", sub: "Like a kiss", id: "kissing-face" },
+  { title: "Stick your tongue out", sub: "All the way", id: "face-with-tongue" },
+  { title: "Squeeze your eyes shut", sub: "Tight", id: "confounded-face" },
+];
+function updateTuneBtn() { $("tuneBtn").innerHTML = cal ? '🎯<span class="lbl"> Tuned ✓</span>' : '🎯<span class="lbl"> Tune</span>'; }
+function startTask(t) {
+  task = { ...t, i: 0, phase: "prep", t0: performance.now(), samples: [], results: [] };
+  $("tune").hidden = false; ensureAudio();
+}
+function cancelTask(msg) { task = null; $("tune").hidden = true; if (msg) toast(msg); }
+function taskTick(now) {
+  if (!task) return;
+  const T = task, step = T.steps[T.i], tune = T.type === "tune";
+  const prepMs = tune ? 1600 : 2000, capMs = tune ? 1800 : 1500, t = now - T.t0;
+  const e = BY_ID[step.id];
+  $("tStep").textContent = tune ? `Step ${T.i + 1} of ${T.steps.length}` : "Teach it your face";
+  $("tTitle").textContent = step.title; $("tImg").src = urlOf(e);
+  if (T.phase === "prep") {
+    $("tSub").textContent = "Get ready…"; $("tFill").classList.remove("cap"); $("tFill").style.width = Math.min(100, t / prepMs * 100) + "%";
+    if (t >= prepMs) { T.phase = "cap"; T.t0 = now; T.samples = []; sfx.go(); }
+  } else {
+    $("tSub").textContent = "Hold it!"; $("tFill").classList.add("cap"); $("tFill").style.width = Math.min(100, t / capMs * 100) + "%";
+    if (primary && primary.active) {
+      if (tune) T.samples.push({ ...primary.sm }); else if (primary.debug) T.samples.push({ ...primary.debug.f });
+    }
+    if (t >= capMs) {
+      if (T.samples.length < 8) { cancelTask("I couldn't see your face. Try again with better light."); return; }
+      T.results.push(T.samples); T.i++; T.phase = "prep"; T.t0 = now; sfx.count();
+      if (T.i >= T.steps.length) finishTask(T);
+    }
+  }
+}
+function finishTask(T) {
+  task = null; $("tune").hidden = true;
+  if (T.type === "tune") {
+    cal = buildCal(T.results[0], T.results.slice(1));
+    try { localStorage.setItem(CAL_STORE, JSON.stringify(cal)); } catch (e) {}
+    updateTuneBtn(); sfx.end(); toast("Tuned to your face ✓");
+  } else {
+    const vec = CUSTOM_KEYS.map(k => +mean(T.results[0].map(s => s[k] || 0)).toFixed(3));
+    const strong = Math.max(...vec.filter((_, i) => CUSTOM_KEYS[i] !== "tilt"));
+    if (strong < 0.25) { toast("That looked like a blank face. Try a stronger expression."); return; }
+    const old = custom.find(c => c.id === T.emojiId);
+    if (old) { old.vecs.push(vec); if (old.vecs.length > 4) old.vecs.shift(); } else custom.push({ id: T.emojiId, vecs: [vec] });
+    saveCustom(); markTile(T.emojiId);
+    const cnt = custom.find(c => c.id === T.emojiId).vecs.length;
+    sfx.win(); toast(`Learned ${BY_ID[T.emojiId].ch}${cnt > 1 ? ` (${cnt} examples)` : ""}! Make that face to trigger it.`);
+  }
+}
+async function needCamera() {
+  if (game) { toast("Finish or quit the game first"); return false; }
+  ensureAudio();
+  if (!running) { await start(); if (!running) return false; }
+  return true;
+}
+async function startTune() { if (await needCamera()) startTask({ type: "tune", steps: TUNE_STEPS }); }
+async function startTeach(id) {
+  if (await needCamera()) startTask({ type: "teach", emojiId: id, steps: [{ title: `Make your ${BY_ID[id].folder} face`, sub: "Hold it steady", id }] });
+}
+function openTileMenu(id) {
+  const e = BY_ID[id], m = $("tileMenu"), mine = custom.some(c => c.id === id);
+  m.hidden = false; $("tmImg").src = urlOf(e); $("tmName").textContent = `${e.ch} ${e.folder}`;
+  $("tmHint").textContent = e.hint ? `Try it: ${e.hint}` : "A prop emoji. Teach it your own version of this face.";
+  $("tmTeach").hidden = !(e.kind === "face" || e.kind === "tap");
+  $("tmTeach").textContent = mine ? "Add another example" : "Teach it my face";
+  $("tmForget").hidden = !mine;
+  $("tmPractice").hidden = e.kind === "tap" && !mine;
+  $("tmPractice").onclick = async () => { m.hidden = true; dexEl.hidden = true; if (await needCamera()) startPractice(id); };
+  $("tmShow").onclick = () => { m.hidden = true; dexEl.hidden = true; preview(id); };
+  $("tmTeach").onclick = () => { m.hidden = true; dexEl.hidden = true; startTeach(id); };
+  $("tmForget").onclick = () => { custom = custom.filter(c => c.id !== id); saveCustom(); markTile(id); m.hidden = true; toast("Forgot your version"); };
+  $("tmClose").onclick = () => { m.hidden = true; };
+}
+
+// ---------- practice meter ----------
+const KEY_LABEL = { smile: "smile", smileDiff: "one-sided smile", frown: "frown", jaw: "mouth open", blink: "eyes closed", wink: "one eye closed", wide: "eyes wide",
+  squint: "squint", browUp: "brows raised", browDown: "brows lowered", browOuter: "outer brows up", browOuterDiff: "one brow up", pucker: "pucker", funnel: "round lips",
+  tongue: "tongue out", puff: "puffed cheeks", sneer: "nose scrunch", press: "lips pressed", stretch: "mouth stretch", upperUp: "top teeth showing", rollLow: "lower lip tucked",
+  rollUp: "upper lip tucked", lookUp: "eyes up", lookDown: "eyes down", lookIn: "eyes crossed", shift: "mouth to one side", idle: "face relaxed", tilt: "head tilt", drowsy: "eyes shut longer" };
+let practice = null;
+function startPractice(id) {
+  if (game) quitGame();
+  const e = BY_ID[id]; practice = { id, last: 0, okSince: 0, done: false };
+  $("practice").hidden = false; $("pImg").src = urlOf(e); $("pName").textContent = `${e.ch} ${e.folder}`; $("pFill").classList.remove("ok");
+}
+function stopPractice() { practice = null; $("practice").hidden = true; }
+function practiceTick(now) {
+  if (!practice || now - practice.last < 100) return;
+  practice.last = now;
+  const e = BY_ID[practice.id], f = primary?.debug?.f, mine = custom.find(c => c.id === e.id);
+  let pct = 0, tips = [];
+  if (!primary || !primary.active) tips = ["Show your face to the camera."];
+  else if (mine && f) { pct = customScore(mine.vecs, f); tips = pct < 0.8 ? ["Match the face you taught: make it the same way as when you recorded it."] : []; }
+  else if (e.kind === "face" && f) {
+    const g = ruleGaps(e, f); pct = g.pct;
+    tips = g.gaps.slice(0, 3).map(x => x.key === "drowsy" ? "Keep your eyes shut a bit longer" : `${x.dir === "more" ? "More" : "Less"} ${KEY_LABEL[x.key] || x.key}`);
+  } else if (e.kind === "sign") {
+    const hd = lastHandsPx[0];
+    tips = [hd ? "I see: " + describeHand(hd) : "Show your hand to the camera.", e.hint];
+  } else if (e.kind === "hand") {
+    const d = primary.handDbg || {};
+    const need = { "face-with-hand-over-mouth": ["palm to mouth", d.dMouthPalm, 0.5], "face-with-open-eyes-and-hand-over-mouth": ["palm to mouth", d.dMouthPalm, 0.5],
+      "see-no-evil-monkey": ["palm to eyes", d.dEyes, 0.45], "person-facepalming": ["palm to forehead", d.dFore, 0.55], "saluting-face": ["palm to forehead", d.dFore, 0.55],
+      "shushing-face": ["fingertip to mouth", d.dMouthIdx, 0.35], "thinking-face": ["fingertip to chin", d.dChinIdx, 0.5] }[e.id];
+    if (need && need[1] !== undefined) { pct = clamp01(1 - Math.max(0, need[1] - need[2]) / (need[2] * 1.5)); tips = [`${need[0]}: ${need[1].toFixed(2)} (needs under ${need[2]})`, e.hint]; }
+    else tips = [lastHandsPx.length ? e.hint : "Bring a hand up to your face."];
+  } else tips = [e.hint];
+  const seen = primary?.shown && BY_ID[primary.shown];
+  const ok = !!(primary && primary.active && primary.shown === e.id);
+  if (ok) pct = 1;
+  $("pFill").style.width = Math.round(pct * 100) + "%"; $("pFill").classList.toggle("ok", ok);
+  $("pPct").textContent = Math.round(pct * 100) + "%";
+  $("pSees").textContent = seen ? `I see: ${seen.ch} ${seen.folder}` : "";
+  $("pTips").innerHTML = ok ? "That's it! Hold it." : tips.filter(Boolean).join("<br>");
+  if (ok) { if (!practice.okSince) practice.okSince = now; if (!practice.done && now - practice.okSince > 400) { practice.done = true; sfx.win(); $("pStatus").textContent = "✓ Got it"; } }
+  else { practice.okSince = 0; practice.done = false; $("pStatus").textContent = ""; }
+}
+
+// ---------- share: photo snap, cards, links ----------
+const FONT = '"Bricolage Grotesque", system-ui, -apple-system, "Segoe UI", sans-serif';
+const imgCache = new Map();
+function loadImg(url) {
+  if (imgCache.has(url)) return imgCache.get(url);
+  const p = new Promise(res => { const im = new Image(); im.crossOrigin = "anonymous"; im.onload = () => res(im); im.onerror = () => res(null); im.src = url; });
+  imgCache.set(url, p); return p;
+}
+const rrPath = (x, px, py, w, h, r) => { x.beginPath(); if (x.roundRect) x.roundRect(px, py, w, h, r); else x.rect(px, py, w, h); };
+const cssVar = (n, fb) => getComputedStyle(document.documentElement).getPropertyValue(n).trim() || fb;
+const toBlob = cv => new Promise(res => cv.toBlob(res, "image/png"));
+const hosted = () => /^https?:$/.test(location.protocol);
+const pageUrl = () => location.href.split("#")[0];
+
+function openShare(blob, filename, text) {
+  const url = URL.createObjectURL(blob), file = new File([blob], filename, { type: "image/png" });
+  const canFiles = !!(navigator.canShare && navigator.canShare({ files: [file] }));
+  $("shImg").src = url; $("shareModal").hidden = false;
+  $("shShare").hidden = !(canFiles || navigator.share);
+  $("shNote").textContent = hosted() ? "" : "Tip: host this page online (Netlify Drop or GitHub Pages) so friends can open your links.";
+  $("shShare").onclick = async () => {
+    try { if (canFiles) await navigator.share({ files: [file], text: hosted() ? `${text} ${pageUrl()}` : text }); else await navigator.share({ text, url: hosted() ? pageUrl() : undefined }); }
+    catch (e) {}
+  };
+  $("shSave").onclick = () => { const a = document.createElement("a"); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove(); };
+  $("shClose").onclick = () => { $("shareModal").hidden = true; URL.revokeObjectURL(url); };
+}
+
+async function snap() {
+  if (!renderer) return;
+  $("flashFx").classList.remove("go"); void $("flashFx").offsetWidth; $("flashFx").classList.add("go");
+  renderer.render(scene, camera);                         // fresh frame so the canvas can be read
+  const W = 1080, H = 1350, cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+  const x = cv.getContext("2d");
+  const bg = x.createRadialGradient(W / 2, H * 0.4, 60, W / 2, H * 0.4, H * 0.85);
+  bg.addColorStop(0, cssVar("--c1", "#ffd45e")); bg.addColorStop(1, cssVar("--c2", "#c27a00")); x.fillStyle = bg; x.fillRect(0, 0, W, H);
+  const src = renderer.domElement, cw = src.width, ch = src.height, n = slots.filter(s => s.active).length;
+  if (n <= 1) {
+    const side = Math.min(cw, ch) * 0.98, sx = (cw - side) / 2, sy = Math.max(0, Math.min(ch - side, (ch - side) / 2 - ch * 0.06));
+    x.drawImage(src, sx, sy, side, side, 0, 90, W, W);
+  } else {
+    const sh = Math.min(ch, cw * 0.8); x.drawImage(src, 0, (ch - sh) / 2, cw, sh, 0, 150, W, W * sh / cw);
+  }
+  if (video.videoWidth && running) {                    // your face, mirrored, bottom left
+    const w = 330, hh = 248, px = 48, py = H - hh - 150;
+    x.save(); rrPath(x, px, py, w, hh, 36); x.clip(); x.translate(px + w, py); x.scale(-1, 1); { const vr = video.videoWidth / video.videoHeight, tr = w / hh; let sx = 0, sy = 0, sw = video.videoWidth, sh = video.videoHeight;
+      if (vr > tr) { sw = sh * tr; sx = (video.videoWidth - sw) / 2; } else { sh = sw / tr; sy = (video.videoHeight - sh) / 2; }
+      x.drawImage(video, sx, sy, sw, sh, 0, 0, w, hh); }
+    x.restore();
+    x.lineWidth = 8; x.strokeStyle = "#fff"; rrPath(x, px, py, w, hh, 36); x.stroke();
+  }
+  const e = BY_ID[primary?.shown], name = e ? e.folder : "Emoji Mirror 3D";
+  x.font = `800 58px ${FONT}`; const tw = Math.min(W - 100, x.measureText(name).width + 80);
+  x.fillStyle = "rgba(20,17,30,.72)"; rrPath(x, (W - tw) / 2, H - 130, tw, 88, 44); x.fill();
+  x.fillStyle = "#fff"; x.textAlign = "center"; x.textBaseline = "middle"; x.fillText(name, W / 2, H - 85, W - 140);
+  x.textAlign = "left"; x.textBaseline = "alphabetic"; x.font = `800 40px ${FONT}`; x.fillStyle = "rgba(20,17,30,.75)"; x.fillText("Emoji Mirror 3D", 48, 76);
+  const blob = await toBlob(cv); if (blob) openShare(blob, "emoji-mirror.png", `I'm ${name} in Emoji Mirror 3D!`);
+}
+
+function cardBase(W, H) {
+  const cv = document.createElement("canvas"); cv.width = W; cv.height = H; const x = cv.getContext("2d");
+  const bg = x.createLinearGradient(0, 0, W, H); bg.addColorStop(0, "#43267f"); bg.addColorStop(1, "#14111f"); x.fillStyle = bg; x.fillRect(0, 0, W, H);
+  x.fillStyle = "#fff"; x.font = `800 44px ${FONT}`; x.textAlign = "left"; x.fillText("Emoji Mirror 3D", 60, 100);
+  return { cv, x };
+}
+function cardFooter(x, W, H, line) {
+  x.textAlign = "center"; x.fillStyle = "#ffd45e"; x.font = `800 54px ${FONT}`; x.fillText(line, W / 2, H - 110);
+  x.fillStyle = "#b9b6cc"; x.font = `600 30px ${FONT}`;
+  x.fillText(hosted() ? (location.host + location.pathname).replace(/\/$/, "") : "Make faces. Collect emojis.", W / 2, H - 56);
+}
+
+async function makeScoreCard(g) {
+  const W = 1080, H = 1350, { cv, x } = cardBase(W, H);
+  const top = Math.max(...g.scores), hits = g.log.filter(r => r.ok).length;
+  x.fillStyle = "#b9b6cc"; x.font = `600 30px ${FONT}`; x.fillText("Emoji Challenge", 60, 148);
+  x.textAlign = "center";
+  if (g.players === 1) {
+    x.fillStyle = "#ffd45e"; x.font = `800 230px ${FONT}`; x.fillText(String(top), W / 2, 420);
+    x.fillStyle = "#fff"; x.font = `600 40px ${FONT}`; x.fillText("points", W / 2, 480);
+    x.fillStyle = "#cfcde0"; x.font = `600 32px ${FONT}`; x.fillText(`${hits} of ${g.log.length} matched · best streak ${g.bestStreak}`, W / 2, 545);
+  } else {
+    const winners = g.scores.map((s, i) => [s, i]).filter(([s]) => s === top).map(([, i]) => `Player ${i + 1}`);
+    x.fillStyle = "#ffd45e"; x.font = `800 120px ${FONT}`; x.fillText(winners.length > 1 ? "Tie!" : winners[0] + " wins!", W / 2, 400, W - 100);
+    x.fillStyle = "#cfcde0"; x.font = `600 38px ${FONT}`; x.fillText(g.scores.map((s, i) => `P${i + 1}: ${s}`).join("   "), W / 2, 500);
+  }
+  const imgs = await Promise.all(g.log.map(r => loadImg(urlOf(BY_ID[r.id]))));
+  const cols = 5, cell = 190, gx = (W - cols * cell) / 2, gy = 620;
+  g.log.forEach((r, i) => {
+    const cx = gx + (i % cols) * cell, cy = gy + Math.floor(i / cols) * (cell + 50);
+    x.fillStyle = "rgba(255,255,255,.08)"; rrPath(x, cx + 8, cy, cell - 16, cell + 24, 28); x.fill();
+    x.globalAlpha = r.ok ? 1 : 0.35;
+    if (imgs[i]) x.drawImage(imgs[i], cx + 25, cy + 14, 140, 140);
+    else { x.font = "100px sans-serif"; x.fillStyle = "#fff"; x.fillText(BY_ID[r.id].ch, cx + cell / 2, cy + 120); }
+    x.globalAlpha = 1;
+    x.font = `800 40px ${FONT}`; x.fillStyle = r.ok ? "#7cffb2" : "#ff6b6b"; x.textAlign = "right"; x.fillText(r.ok ? "✓" : "✗", cx + cell - 20, cy + 48);
+    x.textAlign = "center"; x.font = `600 26px ${FONT}`; x.fillStyle = "#cfcde0"; x.fillText(r.ok ? `+${r.pts}` : "missed", cx + cell / 2, cy + cell + 8);
+  });
+  cardFooter(x, W, H, "Can you beat me?");
+  return toBlob(cv);
+}
+
+async function makeCollectionCard() {
+  const W = 1080, H = 1350, { cv, x } = cardBase(W, H);
+  const list = ROSTER.filter(e => e.kind !== "tap");
+  x.textAlign = "center"; x.fillStyle = "#ffd45e"; x.font = `800 150px ${FONT}`; x.fillText(`${liveCount()} / ${liveTotal}`, W / 2, 290);
+  x.fillStyle = "#fff"; x.font = `600 40px ${FONT}`; x.fillText("emojis unlocked with my face", W / 2, 350);
+  const imgs = await Promise.all(list.map(e => loadImg(urlOf(e))));
+  const cols = 11, cell = 90, gx = (W - cols * cell) / 2, gy = 400;
+  list.forEach((e, i) => {
+    const cx = gx + (i % cols) * cell, cy = gy + Math.floor(i / cols) * cell;
+    x.globalAlpha = unlocked.has(e.id) ? 1 : 0.18;
+    if (imgs[i]) x.drawImage(imgs[i], cx + 6, cy + 6, cell - 12, cell - 12);
+    x.globalAlpha = 1;
+  });
+  cardFooter(x, W, H, "How many can you unlock?");
+  return toBlob(cv);
+}
+
+async function shareChallenge(ids, score) {
+  const link = pageUrl() + encodeChallenge(ids, score), text = `I scored ${score} on the Emoji Challenge. Can you beat it?`;
+  try { if (navigator.share) { await navigator.share({ title: "Emoji Mirror 3D challenge", text, url: link }); return; } }
+  catch (e) { if (e && e.name === "AbortError") return; }
+  try { await navigator.clipboard.writeText(link); toast(hosted() ? "Challenge link copied" : "Link copied. It works for friends once this page is hosted online"); }
+  catch (e) { prompt("Copy this link", link); }
+}
+
+let challenge = null;
+function updatePlayLabel() { $("playBtn").textContent = challenge ? "▶ Play challenge" : "▶ Play"; }
+function parseChallenge() {
+  const c = decodeChallenge(location.hash); if (!c) return;
+  challenge = c; updatePlayLabel();
+  nameEl.textContent = "A friend challenged you!"; subEl.textContent = `They scored ${c.beat}. Press Play to try the same ${c.ids.length} emojis.`;
+  try { history.replaceState(null, "", pageUrl()); } catch (e) {}
+}
+
+// ---------- boot ----------
+async function boot() {
+  try {
+    THREE = await import("https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js");
+  } catch (e) {
+    nameEl.textContent = "Couldn't load the 3D engine"; subEl.textContent = "Check your internet connection and reload the page.";
+    startBtn.hidden = true; return;
+  }
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  maxAniso = renderer.capabilities.getMaxAnisotropy();
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(40, 1, 0.1, 50); camera.position.set(0, 0, CAM_Z);
+  loader = new THREE.TextureLoader(); loader.setCrossOrigin("anonymous");
+  const dc = document.createElement("canvas"); dc.width = dc.height = 32;
+  const dx = dc.getContext("2d"), dg = dx.createRadialGradient(16, 16, 0, 16, 16, 16);
+  dg.addColorStop(0, "#fff"); dg.addColorStop(1, "rgba(255,255,255,0)"); dx.fillStyle = dg; dx.fillRect(0, 0, 32, 32);
+  dotTex = new THREE.CanvasTexture(dc);
+
+  slots.push(makeSlot()); primary = slots[0];
+  addEventListener("resize", () => { resize(); layoutSlots(slots.filter(s => s.active).length ? slots.filter(s => s.active) : [slots[0]]); });
+  resize(); layoutSlots([slots[0]]);
+  setShown(slots[0], "slightly-smiling-face", { silent: true });
+  requestAnimationFrame(tick);
+}
+
+$("startBtn").addEventListener("click", start);
+$("playBtn").addEventListener("click", playClicked);
+$("gSkip").addEventListener("click", () => { if (game && game.state === "round") roundMiss(performance.now(), true); });
+$("gQuit").addEventListener("click", quitGame);
+$("gMute").addEventListener("click", () => { muted = !muted; $("gMute").textContent = muted ? "Sound off" : "Sound on"; });
+$("stopBtn").addEventListener("click", stop);
+$("dexBtn").addEventListener("click", () => { dexEl.hidden = false; });
+$("dexClose").addEventListener("click", () => { dexEl.hidden = true; });
+$("dexReset").addEventListener("click", () => { unlocked = new Set(); save(); updateCount(); ROSTER.forEach(e => markTile(e.id)); });
+addEventListener("keydown", e => {
+  if (e.key === "Escape") { dexEl.hidden = true; $("tileMenu").hidden = true; $("shareModal").hidden = true; if (task) cancelTask(); stopPractice(); if (game) quitGame(); }
+  if (e.key === "d" || e.key === "D") debugEl.hidden = !debugEl.hidden;
+});
+$("snapBtn").addEventListener("click", snap);
+$("tuneBtn").addEventListener("click", startTune);
+$("tCancel").addEventListener("click", () => cancelTask());
+$("pDone").addEventListener("click", stopPractice);
+$("dexShare").addEventListener("click", async () => { toast("Making your card…"); const b = await makeCollectionCard(); if (b) openShare(b, "emoji-collection.png", `I've unlocked ${liveCount()} of ${liveTotal} emojis!`); });
+$("calReset").addEventListener("click", () => { cal = null; try { localStorage.removeItem(CAL_STORE); } catch (e) {} updateTuneBtn(); toast("Tuning reset"); });
+buildDex(); updateCount(); updateTuneBtn(); parseChallenge(); boot();
+</script>
+</body>
+</html>
